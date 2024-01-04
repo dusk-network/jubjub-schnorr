@@ -5,14 +5,14 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
-use dusk_schnorr::{PublicKey, SecretKey};
+use jubjub_schnorr::{PublicKey, SecretKey};
 use rand_core::OsRng;
 
 #[cfg(feature = "double")]
-use dusk_schnorr::PublicKeyDouble;
+use jubjub_schnorr::PublicKeyDouble;
 
 #[cfg(feature = "var_generator")]
-use dusk_schnorr::{PublicKeyVarGen, SecretKeyVarGen};
+use jubjub_schnorr::{PublicKeyVarGen, SecretKeyVarGen};
 
 #[test]
 #[allow(clippy::eq_op)]

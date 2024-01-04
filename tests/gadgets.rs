@@ -5,18 +5,18 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::Error as PlonkError;
-use dusk_schnorr::{gadgets, PublicKey, SecretKey, Signature};
 use ff::Field;
+use jubjub_schnorr::{gadgets, PublicKey, SecretKey, Signature};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 use dusk_plonk::prelude::*;
 
 #[cfg(feature = "double")]
-use dusk_schnorr::{PublicKeyDouble, SignatureDouble};
+use jubjub_schnorr::{PublicKeyDouble, SignatureDouble};
 
 #[cfg(feature = "var_generator")]
-use dusk_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
+use jubjub_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
 
 lazy_static::lazy_static! {
     pub static ref PP: PublicParameters = {

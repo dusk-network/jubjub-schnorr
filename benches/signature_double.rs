@@ -6,8 +6,8 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use dusk_schnorr::{gadgets, PublicKeyDouble, SecretKey, SignatureDouble};
 use ff::Field;
+use jubjub_schnorr::{gadgets, PublicKeyDouble, SecretKey, SignatureDouble};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 

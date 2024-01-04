@@ -39,7 +39,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 ///
 /// Generate a random `SecretKey`:
 /// ```
-/// use dusk_schnorr::SecretKey;
+/// use jubjub_schnorr::SecretKey;
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
 ///
@@ -126,7 +126,7 @@ impl SecretKey {
     /// Sign a message with a [`SecretKey`] and verify with the respective
     /// [`PublicKey`]:
     /// ```
-    /// use dusk_schnorr::{SecretKey, PublicKey};
+    /// use jubjub_schnorr::{SecretKey, PublicKey};
     /// use dusk_jubjub::JubJubScalar;
     /// use dusk_bls12_381::BlsScalar;
     /// use rand::rngs::StdRng;
@@ -192,7 +192,7 @@ impl SecretKey {
     /// Double sign a message with a [`SecretKey`] and verify with the
     /// respective [`PublicKeyDouble`]:
     /// ```
-    /// use dusk_schnorr::{SecretKey, PublicKeyDouble};
+    /// use jubjub_schnorr::{SecretKey, PublicKeyDouble};
     /// use dusk_jubjub::JubJubScalar;
     /// use dusk_bls12_381::BlsScalar;
     /// use rand::rngs::StdRng;
@@ -276,7 +276,7 @@ impl SecretKey {
 /// Generate a random `SecretKey`:
 /// Generating a random `SecretKeyVarGen` with a variable generator
 /// ```
-/// use dusk_schnorr::{SecretKey, SecretKeyVarGen};
+/// use jubjub_schnorr::{SecretKey, SecretKeyVarGen};
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
 /// use dusk_jubjub::{JubJubScalar, GENERATOR_EXTENDED};
@@ -409,7 +409,7 @@ impl SecretKeyVarGen {
     /// Sign a message with a [`SecretKeyVarGen`] and verify with the respective
     /// [`PublicKeyVarGen`]:
     /// ```
-    /// use dusk_schnorr::{SecretKeyVarGen, PublicKeyVarGen};
+    /// use jubjub_schnorr::{SecretKeyVarGen, PublicKeyVarGen};
     /// use dusk_jubjub::JubJubScalar;
     /// use dusk_bls12_381::BlsScalar;
     /// use rand::rngs::StdRng;
