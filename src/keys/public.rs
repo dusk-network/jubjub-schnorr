@@ -41,7 +41,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 ///
 /// Generate a [`PublicKey`] from a [`SecretKey`]:
 /// ```
-/// use dusk_schnorr::{SecretKey, PublicKey};
+/// use jubjub_schnorr::{SecretKey, PublicKey};
 /// use dusk_bls12_381::BlsScalar;
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
@@ -170,7 +170,7 @@ impl PublicKey {
 /// ```
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
-/// use dusk_schnorr::{SecretKey, PublicKeyDouble};
+/// use jubjub_schnorr::{SecretKey, PublicKeyDouble};
 ///
 /// let mut rng = StdRng::seed_from_u64(12345);
 /// let sk = SecretKey::random(&mut rng);
@@ -312,7 +312,7 @@ impl Serializable<64> for PublicKeyDouble {
 ///
 /// Generate a [`PublicKeyVarGen`] from a [`SecretKeyVarGen`]:
 /// ```
-/// use dusk_schnorr::{SecretKeyVarGen, PublicKeyVarGen};
+/// use jubjub_schnorr::{SecretKeyVarGen, PublicKeyVarGen};
 /// use dusk_bls12_381::BlsScalar;
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;

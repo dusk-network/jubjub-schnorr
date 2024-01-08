@@ -6,8 +6,8 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
 use ff::Field;
+use jubjub_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 

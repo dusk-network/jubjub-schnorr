@@ -18,7 +18,7 @@ jobs:
     name: Build Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench --no-run --features=double,var_generator
 
@@ -28,17 +28,17 @@ jobs:
     with:
       test_flags: --features=double,var_generator
 
-  test_nightly_std_double:
-    name: Nightly tests std
+  test_nightly_std_double_compiles:
+    name: Nightly std feature=double tests compile
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=var_generator
+      test_flags: --features=double --no-run
 
-  test_nightly_std_var_generator:
-    name: Nightly tests std
+  test_nightly_std_var_generator_compiles:
+    name: Nightly std feature=var_generator tests compile
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=double
+      test_flags: --features=var_generator --no-run
 
   test_nightly_no_std:
     name: Nightly tests no_std

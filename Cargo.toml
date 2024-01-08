@@ -1,9 +1,9 @@
 [package]
-name = "dusk-schnorr"
-version = "0.18.0"
+name = "jubjub-schnorr"
+version = "0.1.0"
 edition = "2021"
 readme = "README.md"
-repository = "https://github.com/dusk-network/schnorr"
+repository = "https://github.com/dusk-network/jubjub-schnorr"
 keywords = ["cryptography", "schnorr", "zk-snarks", "zero-knowledge", "signatures"]
 categories =["algorithms", "cryptography", "mathematics"]
 description = "A pure-Rust implementation of Schnorr signatures with a PLONK circuit module additionally"

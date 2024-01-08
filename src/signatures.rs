@@ -29,7 +29,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 ///
 /// ```
 /// use dusk_bls12_381::BlsScalar;
-/// use dusk_schnorr::{PublicKey, SecretKey, Signature};
+/// use jubjub_schnorr::{PublicKey, SecretKey, Signature};
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
 /// use ff::Field;
@@ -152,7 +152,7 @@ pub(crate) fn challenge_hash(
 /// ```
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
-/// use dusk_schnorr::{SecretKey, PublicKeyDouble, SignatureDouble};
+/// use jubjub_schnorr::{SecretKey, PublicKeyDouble, SignatureDouble};
 /// use dusk_bls12_381::BlsScalar;
 /// use ff::Field;
 ///
@@ -307,7 +307,7 @@ pub(crate) fn challenge_hash_double(
 ///
 /// ```
 /// use dusk_bls12_381::BlsScalar;
-/// use dusk_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
+/// use jubjub_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
 /// use ff::Field;

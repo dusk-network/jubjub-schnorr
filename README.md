@@ -1,7 +1,7 @@
-# dusk-schnorr
-![Build Status](https://github.com/dusk-network/schnorr/workflows/Continuous%20integration/badge.svg)
-[![Repository](https://img.shields.io/badge/github-schnorr-blueviolet?logo=github)](https://github.com/dusk-network/schnorr)
-[![Documentation](https://img.shields.io/badge/docs-schnorr-blue?logo=rust)](https://docs.rs/schnorr/)
+# jubjub-schnorr
+![Build Status](https://github.com/dusk-network/jubjub-schnorr/workflows/Continuous%20integration/badge.svg)
+[![Repository](https://img.shields.io/badge/github-schnorr-blueviolet?logo=github)](https://github.com/dusk-network/jubjub-schnorr)
+[![Documentation](https://img.shields.io/badge/docs-schnorr-blue?logo=rust)](https://docs.rs/jubjub-schnorr/)
 
 This crate provides a Rust implementation of the Schnorr signature scheme for the JubJub elliptic curve group, using the Poseidon hash function. This implementation is designed by the [Dusk](https://dusk.network) team.
 
@@ -113,15 +113,15 @@ The implemented signature scheme is existentially unforgeable under chosen-messa
 While the basic Schnorr signature scheme is a widely recognized construct, the double-key variant as employed by Phoenix is a novel introduction. In the context of the transaction protocol, this allows for the delegation of proof computations without compromising the confidentiality of the signer's secret key.
 
 ## Usage
-To integrate the `dusk-schnorr` crate into your project, add it with the following command:
+To integrate the `jubjub-schnorr` crate into your project, add it with the following command:
 ```bash
-cargo add dusk-schnorr
+cargo add jubjub-schnorr
 ```
 
 A basic example demonstrating how to generate and verify a Schnorr signature:
 ```rust
 use dusk_bls12_381::BlsScalar;
-use dusk_schnorr::{SecretKey, PublicKey};
+use jubjub_schnorr::{SecretKey, PublicKey};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use ff::Field;
@@ -134,7 +134,7 @@ fn main() {
     // Key generation
     let sk = SecretKey::random(&mut rng);
 
-    // Standard Dusk-Schnorr signature scheme:
+    // Standard Schnorr signature scheme:
     let pk = PublicKey::from(&sk);
     let signature = sk.sign(&mut rng, message);
     assert!(pk.verify(&signature, message), "The signature should be valid.");
@@ -142,7 +142,7 @@ fn main() {
     // Double Dusk-Schnorr signature scheme:
     #[cfg(features = "double")]
     {
-        let pk = dusk_schnorr::PublicKeyDouble::from(&sk);
+        let pk = jubjub_schnorr::PublicKeyDouble::from(&sk);
         let signature = sk.sign_double(&mut rng, message);
         assert!(pk.verify(&signature, message), "The signature should be valid.");
     }
@@ -152,7 +152,7 @@ fn main() {
     {
         let generator = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(42u64);
         let sk = sk.with_variable_generator(generator);
-        let pk = dusk_schnorr::PublicKeyVarGen::from(&sk);
+        let pk = jubjub_schnorr::PublicKeyVarGen::from(&sk);
         let signature = sk.sign(&mut rng, message);
         assert!(pk.verify(&signature, message), "The signature should be valid.");
     }
