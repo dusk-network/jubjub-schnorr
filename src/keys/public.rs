@@ -119,14 +119,14 @@ impl PublicKey {
     ///
     /// A boolean value indicating the validity of the Schnorr [`Signature`].
     pub fn verify(&self, sig: &Signature, message: BlsScalar) -> bool {
-        // Compute challenge value, c = H(R||m);
-        let c = crate::signatures::challenge_hash(sig.R(), message);
+        // Compute challenge value, c = H(R||pk||m);
+        let c = crate::signatures::challenge_hash(sig.R(), message, *self);
 
         // Compute verification steps
         // u * G + c * PK
         let point_1 = (GENERATOR_EXTENDED * sig.u()) + (self.as_ref() * c);
 
-        point_1.eq(&sig.R())
+        point_1.eq(sig.R())
     }
 
     /// Create a [`PublicKey`] from its internal parts.
@@ -224,11 +224,12 @@ impl PublicKeyDouble {
         sig_double: &SignatureDouble,
         message: BlsScalar,
     ) -> bool {
-        // Compute challenge value, c = H(R||R_prime||m);
+        // Compute challenge value, c = H(R||R_prime||pk||m);
         let c = crate::signatures::challenge_hash_double(
             sig_double.R(),
             sig_double.R_prime(),
             message,
+            self.pk().into(),
         );
 
         // Compute verification steps
@@ -403,8 +404,12 @@ impl PublicKeyVarGen {
         sig_var_gen: &SignatureVarGen,
         message: BlsScalar,
     ) -> bool {
-        // Compute challenge value, c = H(R||H(m));
-        let c = crate::signatures::challenge_hash(sig_var_gen.R(), message);
+        // Compute challenge value, c = H(R||pk||m);
+        let c = crate::signatures::challenge_hash(
+            sig_var_gen.R(),
+            message,
+            self.public_key().into(),
+        );
 
         // Compute verification steps
         // u * G + c * PK

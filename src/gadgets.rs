@@ -55,7 +55,10 @@ pub fn verify_signature(
     let r_x = *r.x();
     let r_y = *r.y();
 
-    let challenge = [r_x, r_y, msg];
+    let pk_x = *pk.x();
+    let pk_y = *pk.y();
+
+    let challenge = [r_x, r_y, pk_x, pk_y, msg];
     let challenge_hash = sponge::truncated::gadget(composer, &challenge);
 
     let s_a = composer.component_mul_generator(u, GENERATOR_EXTENDED)?;
@@ -111,7 +114,10 @@ pub fn verify_signature_double(
     let r_p_x = *r_p.x();
     let r_p_y = *r_p.y();
 
-    let challenge = [r_x, r_y, r_p_x, r_p_y, msg];
+    let pk_x = *pk.x();
+    let pk_y = *pk.y();
+
+    let challenge = [r_x, r_y, r_p_x, r_p_y, pk_x, pk_y, msg];
     let challenge_hash = sponge::truncated::gadget(composer, &challenge);
 
     let s_a = composer.component_mul_generator(u, GENERATOR_EXTENDED)?;
@@ -170,7 +176,10 @@ pub fn verify_signature_var_gen(
     let r_x = *r.x();
     let r_y = *r.y();
 
-    let challenge = [r_x, r_y, msg];
+    let pk_x = *pk.x();
+    let pk_y = *pk.y();
+
+    let challenge = [r_x, r_y, pk_x, pk_y, msg];
     let challenge_hash = sponge::truncated::gadget(composer, &challenge);
 
     // TODO: check whether we need to append the generator as a constant

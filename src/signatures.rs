@@ -18,6 +18,11 @@ use dusk_poseidon::sponge::truncated::hash;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
+#[cfg(feature = "var_generator")]
+use crate::PublicKeyVarGen;
+
+use crate::PublicKey;
+
 /// An Schnorr signature, produced by signing a message with a [`SecretKey`].
 ///
 /// ## Fields
@@ -127,10 +132,18 @@ impl Serializable<64> for Signature {
 pub(crate) fn challenge_hash(
     R: &JubJubExtended,
     message: BlsScalar,
+    pk: PublicKey,
 ) -> JubJubScalar {
     let R_coordinates = R.to_hash_inputs();
+    let pk_coordinates = pk.as_ref().to_hash_inputs();
 
-    hash(&[R_coordinates[0], R_coordinates[1], message])
+    hash(&[
+        R_coordinates[0],
+        R_coordinates[1],
+        pk_coordinates[0],
+        pk_coordinates[1],
+        message,
+    ])
 }
 
 /// Structure representing a Schnorr signature with a double-key mechanism.
@@ -276,15 +289,19 @@ pub(crate) fn challenge_hash_double(
     R: &JubJubExtended,
     R_prime: &JubJubExtended,
     message: BlsScalar,
+    pk: PublicKey,
 ) -> JubJubScalar {
     let R_coordinates = R.to_hash_inputs();
     let R_p_coordinates = R_prime.to_hash_inputs();
+    let pk_coordinates = pk.as_ref().to_hash_inputs();
 
     hash(&[
         R_coordinates[0],
         R_coordinates[1],
         R_p_coordinates[0],
         R_p_coordinates[1],
+        pk_coordinates[0],
+        pk_coordinates[1],
         message,
     ])
 }
@@ -401,4 +418,24 @@ impl Serializable<64> for SignatureVarGen {
 
         Ok(Self { u, R })
     }
+}
+
+// Create a challenge hash for the double signature scheme.
+#[cfg(feature = "var_generator")]
+#[allow(non_snake_case)]
+pub(crate) fn challenge_hash_var_gen(
+    R: &JubJubExtended,
+    message: BlsScalar,
+    pk: PublicKeyVarGen,
+) -> JubJubScalar {
+    let R_coordinates = R.to_hash_inputs();
+    let pk_coordinates = pk.public_key().to_hash_inputs();
+
+    hash(&[
+        R_coordinates[0],
+        R_coordinates[1],
+        pk_coordinates[0],
+        pk_coordinates[1],
+        message,
+    ])
 }
