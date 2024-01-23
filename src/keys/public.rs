@@ -229,7 +229,7 @@ impl PublicKeyDouble {
             sig_double.R(),
             sig_double.R_prime(),
             self.pk().into(),
-            message  
+            message,
         );
 
         // Compute verification steps
@@ -387,8 +387,8 @@ impl PublicKeyVarGen {
     /// Verifies that the given Schnorr [`SignatureVarGen`] is valid.
     ///
     /// This function computes a challenge hash using the stored `R` point, the
-    /// public key `pk`, and the provided message, then performs the verification 
-    /// by checking the equality of `u * G + c * PK` and `R`.
+    /// public key `pk`, and the provided message, then performs the
+    /// verification by checking the equality of `u * G + c * PK` and `R`.
     ///
     /// ## Parameters
     ///

@@ -237,8 +237,8 @@ impl SecretKey {
         let c = crate::signatures::challenge_hash_double(
             &R,
             &R_prime,
-            message,
             PublicKey::from(self),
+            message,
         );
 
         // Compute scalar signature, u = r - c * sk,
@@ -453,7 +453,7 @@ impl SecretKeyVarGen {
         let c = crate::signatures::challenge_hash_var_gen(
             &R,
             PublicKeyVarGen::from(self),
-            msg
+            msg,
         );
 
         // Compute scalar signature, U = r - c * sk,
