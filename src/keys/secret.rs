@@ -17,8 +17,10 @@ use dusk_jubjub::{JubJubScalar, GENERATOR_EXTENDED};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
-use crate::Signature;
+use crate::{PublicKey, Signature};
 
+#[cfg(feature = "var_generator")]
+use crate::PublicKeyVarGen;
 #[cfg(feature = "var_generator")]
 use crate::SignatureVarGen;
 #[cfg(feature = "var_generator")]
@@ -109,7 +111,7 @@ impl SecretKey {
     /// This function performs the following cryptographic operations:
     /// - Generates a random nonce `r`.
     /// - Computes `R = r * G`.
-    /// - Computes the challenge `c = H(R || m)`.
+    /// - Computes the challenge `c = H(R || pk || m)`.
     /// - Computes the signature `u = r - c * sk`.
     ///
     /// ## Parameters
@@ -158,8 +160,9 @@ impl SecretKey {
         // R = r * G
         let R = GENERATOR_EXTENDED * r;
 
-        // Compute challenge value, c = H(R||m);
-        let c = crate::signatures::challenge_hash(&R, msg);
+        // Compute challenge value, c = H(R||pk||m);
+        let c =
+            crate::signatures::challenge_hash(&R, PublicKey::from(self), msg);
 
         // Compute scalar signature, U = r - c * sk,
         let u = r - (c * self.as_ref());
@@ -230,8 +233,13 @@ impl SecretKey {
         // R_prime = r * G'
         let R = GENERATOR_EXTENDED * r;
         let R_prime = GENERATOR_NUMS_EXTENDED * r;
-        // Compute challenge value, c = H(R||R_prime||m);
-        let c = crate::signatures::challenge_hash_double(&R, &R_prime, message);
+        // Compute challenge value, c = H(R||R_prime||pk||m);
+        let c = crate::signatures::challenge_hash_double(
+            &R,
+            &R_prime,
+            PublicKey::from(self),
+            message,
+        );
 
         // Compute scalar signature, u = r - c * sk,
         let u = r - (c * self.as_ref());
@@ -391,7 +399,7 @@ impl SecretKeyVarGen {
     /// This function performs the following cryptographic operations:
     /// - Generates a random nonce `r`.
     /// - Computes `R = r * G`.
-    /// - Computes the challenge `c = H(R || m)`.
+    /// - Computes the challenge `c = H(R || pk || m)`.
     /// - Computes the signature `u = r - c * sk`.
     ///
     /// ## Parameters
@@ -441,8 +449,12 @@ impl SecretKeyVarGen {
         // R = r * G
         let R = self.generator() * r;
 
-        // Compute challenge value, c = H(R||H(m));
-        let c = crate::signatures::challenge_hash(&R, msg);
+        // Compute challenge value, c = H(R||pk||m);
+        let c = crate::signatures::challenge_hash_var_gen(
+            &R,
+            PublicKeyVarGen::from(self),
+            msg,
+        );
 
         // Compute scalar signature, U = r - c * sk,
         let u = r - (c * self.secret_key());
