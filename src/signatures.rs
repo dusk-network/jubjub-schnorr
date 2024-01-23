@@ -420,7 +420,7 @@ impl Serializable<64> for SignatureVarGen {
     }
 }
 
-// Create a challenge hash for the double signature scheme.
+// Create a challenge hash for the signature scheme with a variable generator.
 #[cfg(feature = "var_generator")]
 #[allow(non_snake_case)]
 pub(crate) fn challenge_hash_var_gen(
