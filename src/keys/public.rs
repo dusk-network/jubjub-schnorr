@@ -120,7 +120,7 @@ impl PublicKey {
     /// A boolean value indicating the validity of the Schnorr [`Signature`].
     pub fn verify(&self, sig: &Signature, message: BlsScalar) -> bool {
         // Compute challenge value, c = H(R||pk||m);
-        let c = crate::signatures::challenge_hash(sig.R(), message, *self);
+        let c = crate::signatures::challenge_hash(sig.R(), *self, message);
 
         // Compute verification steps
         // u * G + c * PK
@@ -228,8 +228,8 @@ impl PublicKeyDouble {
         let c = crate::signatures::challenge_hash_double(
             sig_double.R(),
             sig_double.R_prime(),
-            message,
             self.pk().into(),
+            message  
         );
 
         // Compute verification steps
@@ -386,9 +386,9 @@ impl PublicKeyVarGen {
 
     /// Verifies that the given Schnorr [`SignatureVarGen`] is valid.
     ///
-    /// This function computes a challenge hash using the stored `R` point and
-    /// the provided message, then performs the verification by checking the
-    /// equality of `u * G + c * PK` and `R`.
+    /// This function computes a challenge hash using the stored `R` point, the
+    /// public key `pk`, and the provided message, then performs the verification 
+    /// by checking the equality of `u * G + c * PK` and `R`.
     ///
     /// ## Parameters
     ///
@@ -407,8 +407,8 @@ impl PublicKeyVarGen {
         // Compute challenge value, c = H(R||pk||m);
         let c = crate::signatures::challenge_hash(
             sig_var_gen.R(),
-            message,
             self.public_key().into(),
+            message,
         );
 
         // Compute verification steps

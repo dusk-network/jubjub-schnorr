@@ -131,8 +131,8 @@ impl Serializable<64> for Signature {
 #[allow(non_snake_case)]
 pub(crate) fn challenge_hash(
     R: &JubJubExtended,
-    message: BlsScalar,
     pk: PublicKey,
+    message: BlsScalar,
 ) -> JubJubScalar {
     let R_coordinates = R.to_hash_inputs();
     let pk_coordinates = pk.as_ref().to_hash_inputs();
@@ -288,8 +288,8 @@ impl Serializable<96> for SignatureDouble {
 pub(crate) fn challenge_hash_double(
     R: &JubJubExtended,
     R_prime: &JubJubExtended,
-    message: BlsScalar,
     pk: PublicKey,
+    message: BlsScalar,
 ) -> JubJubScalar {
     let R_coordinates = R.to_hash_inputs();
     let R_p_coordinates = R_prime.to_hash_inputs();
@@ -425,8 +425,8 @@ impl Serializable<64> for SignatureVarGen {
 #[allow(non_snake_case)]
 pub(crate) fn challenge_hash_var_gen(
     R: &JubJubExtended,
-    message: BlsScalar,
     pk: PublicKeyVarGen,
+    message: BlsScalar,
 ) -> JubJubScalar {
     let R_coordinates = R.to_hash_inputs();
     let pk_coordinates = pk.public_key().to_hash_inputs();

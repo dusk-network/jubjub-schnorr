@@ -111,7 +111,7 @@ impl SecretKey {
     /// This function performs the following cryptographic operations:
     /// - Generates a random nonce `r`.
     /// - Computes `R = r * G`.
-    /// - Computes the challenge `c = H(R || m)`.
+    /// - Computes the challenge `c = H(R || pk || m)`.
     /// - Computes the signature `u = r - c * sk`.
     ///
     /// ## Parameters
@@ -162,7 +162,7 @@ impl SecretKey {
 
         // Compute challenge value, c = H(R||pk||m);
         let c =
-            crate::signatures::challenge_hash(&R, msg, PublicKey::from(self));
+            crate::signatures::challenge_hash(&R, PublicKey::from(self), msg);
 
         // Compute scalar signature, U = r - c * sk,
         let u = r - (c * self.as_ref());
@@ -399,7 +399,7 @@ impl SecretKeyVarGen {
     /// This function performs the following cryptographic operations:
     /// - Generates a random nonce `r`.
     /// - Computes `R = r * G`.
-    /// - Computes the challenge `c = H(R || m)`.
+    /// - Computes the challenge `c = H(R || pk || m)`.
     /// - Computes the signature `u = r - c * sk`.
     ///
     /// ## Parameters
@@ -452,8 +452,8 @@ impl SecretKeyVarGen {
         // Compute challenge value, c = H(R||pk||m);
         let c = crate::signatures::challenge_hash_var_gen(
             &R,
-            msg,
             PublicKeyVarGen::from(self),
+            msg
         );
 
         // Compute scalar signature, U = r - c * sk,

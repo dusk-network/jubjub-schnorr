@@ -50,14 +50,14 @@ To sign a message $m \in \mathbb{F}_q^×$:
 
 - Choose a random private nonce $r \in \mathbb{F}_p^×$.
 - Compute nonce point $R = rG \in \mathbb{G}$.
-- Compute challenge hash $c = H(R \parallel m) \in \mathbb{F}_p$ where $\parallel$ denotes concatenation and $R$ is represented as a bit string.
+- Compute challenge hash $c = H(R \parallel $PK \parallel m) \in \mathbb{F}_p$ where $\parallel$ denotes concatenation and $R$ is represented as a bit string.
 - Compute $u = r − sk \cdot c \in \mathbb{F}_p$.
 
 The signature is the tuple $(u, R) \in \mathbb{F}_p \times \mathbb{G}$.
 
 #### Verifying
 
-- Compute challenge hash $c = H(R \parallel m) \in \mathbb{F}_p$.
+- Compute challenge hash $c = H(R \parallel $PK \parallel m) \in \mathbb{F}_p$.
 - Verify that $uG + cPK = R$.
 
 If the signature was signed with the secret key corresponding to $PK$, this will hold true, since:
@@ -83,14 +83,14 @@ To sign a message $m \in \mathbb{F}_q^×$:
 
 - Choose a random private nonce $r \in \mathbb{F}_p^×$.
 - Compute nonce points $R = rG \in \mathbb{G}$ and $R' = rG' \in \mathbb{G}$.
-- Compute challenge hash $c = H(R \parallel R' \parallel m) \in \mathbb{F}_p$ where $\parallel$ denotes concatenation and $R, R'$ are represented as a bit strings.
+- Compute challenge hash $c = H(R \parallel R' \parallel $PK \parallel m) \in \mathbb{F}_p$ where $\parallel$ denotes concatenation and $R, R'$ are represented as a bit strings.
 - Compute $u = r − sk \cdot c \in \mathbb{F}_p$.
 
 The signature is the tuple $(u, R, R') \in \mathbb{F}_p \times \mathbb{G} \times \mathbb{G}$.
 
 #### Verifying
 
-- Compute challenge hash $c = H(R \parallel R' \parallel m) \in \mathbb{F}_p$.
+- Compute challenge hash $c = H(R \parallel R' \parallel $PK \parallel m) \in \mathbb{F}_p$.
 - Verify that $rG + cPK = R$ and $uG' + cPK' = R'$.
 
 If the signature was signed with the correct private key, this should hold true because:
