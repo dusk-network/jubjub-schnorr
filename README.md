@@ -12,6 +12,8 @@ The implementation has been created using the [`jubjub`](https://github.com/dusk
 
 The signature scheme is implemented within the [Phoenix](https://github.com/dusk-network/phoenix-core/blob/master/docs/protocol-description.pdf) transaction model and is based on the Schnorr Sigma protocol, compiled alongside the Fiat–Shamir transformation, to serve as a non-interactive signature scheme. Specifically, the Phoenix protocol employs a variant that utilizes double Schnorr signatures, verifiable with double public keys, enabling the delegation of computational processes within the protocol's later stages.
 
+The repository also includes an implementation of the `SpeedyMuSig` Schnorr-based multisignature scheme described [here](https://eprint.iacr.org/2021/1375.pdf) (pag. 19). It allows several signers to create a signature that proves a message to be signed by them all, given their public keys. The signature can be verified using the same function used for the standard Schnorr signature, using the sum of all the signers' public keys.
+
 ## Library Structure
 The library is partitioned into the following components:
 
