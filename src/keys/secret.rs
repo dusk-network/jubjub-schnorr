@@ -489,6 +489,10 @@ impl SecretKeyVarGen {
 pub trait SecretKeyMultisig {
     /// Performs the first round to sign a message using the
     /// multisignature scheme
+    /// ## Returns
+    ///
+    /// Returns two [`JubJubScalar`] being the scalars (r, s), and
+    /// two [`JubJubExtended`] being the points (R, S)
     fn multisig_sign_round_1<R>(
         rng: &mut R,
     ) -> (JubJubScalar, JubJubScalar, JubJubExtended, JubJubExtended)
@@ -497,6 +501,9 @@ pub trait SecretKeyMultisig {
 
     /// Performs the second round to sign a message using the
     /// multisignature scheme
+    /// ## Returns
+    ///
+    /// Returns a [`JubJubScalar`] being the signature share 'z'
     fn multisig_sign_round_2(
         &self,
         r: JubJubScalar,
@@ -508,7 +515,7 @@ pub trait SecretKeyMultisig {
     ) -> Result<JubJubScalar, MultisigError>;
 
     /// Combines all the multisignature shares `z_vec` and returns
-    /// a new signature
+    /// a new signature [`JubJubScalar`]
     fn multisig_combine(
         z_vec: Vec<JubJubScalar>,
         pk_vec: Vec<PublicKey>,
