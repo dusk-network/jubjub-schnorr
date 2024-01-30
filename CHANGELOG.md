@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a multisignature scheme [#2]
+
 ### Changed
 
 - Change challenge computation adding the public key to the hash [#3]
@@ -19,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#3]: https://github.com/dusk-network/jubjub-schnorr/issues/3
+[#2]: https://github.com/dusk-network/jubjub-schnorr/issues/2
 
 <!-- VERSIONS -->
 [Unreleased]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.1.0...HEAD
