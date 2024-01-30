@@ -34,4 +34,5 @@ pub use keys::secret::SecretKeyVarGen;
 pub use signatures::SignatureVarGen;
 
 #[cfg(feature = "multisig")]
-pub use keys::secret::SecretKeyMultisig;
+#[allow(non_snake_case)]
+pub mod multisig;

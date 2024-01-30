@@ -7,7 +7,8 @@
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use ff::Field;
-use jubjub_schnorr::{PublicKey, SecretKey, SecretKeyMultisig, Signature};
+use jubjub_schnorr::multisig;
+use jubjub_schnorr::{PublicKey, SecretKey, Signature};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -32,41 +33,42 @@ fn sign_verify() {
     let pk_vec = vec![pk_1, pk_2];
 
     // First round: all signers compute the following elements
-    let (r_1, s_1, R_1, S_1) = SecretKey::multisig_sign_round_1(&mut rng);
-    let (r_2, s_2, R_2, S_2) = SecretKey::multisig_sign_round_1(&mut rng);
+    let (r_1, s_1, R_1, S_1) = multisig::multisig_sign_round_1(&mut rng);
+    let (r_2, s_2, R_2, S_2) = multisig::multisig_sign_round_1(&mut rng);
 
     // All signers share `R_vec` and `S_vec` with all the other signers
     let R_vec = vec![R_1, R_2];
     let S_vec = vec![S_1, S_2];
 
     // Second round: all the signers compute their share `z`
-    let z_1 = sk_1
-        .multisig_sign_round_2(
-            r_1,
-            s_1,
-            pk_vec.clone(),
-            R_vec.clone(),
-            S_vec.clone(),
-            message,
-        )
-        .expect("Multisig Round 2 failed");
-    let z_2 = sk_2
-        .multisig_sign_round_2(
-            r_2,
-            s_2,
-            pk_vec.clone(),
-            R_vec.clone(),
-            S_vec.clone(),
-            message,
-        )
-        .expect("Multisig Round 2 failed");
+    let z_1 = multisig::multisig_sign_round_2(
+        &sk_1,
+        &r_1,
+        &s_1,
+        &pk_vec.clone(),
+        &R_vec.clone(),
+        &S_vec.clone(),
+        &message,
+    )
+    .expect("Multisig Round 2 failed");
+    let z_2 = multisig::multisig_sign_round_2(
+        &sk_2,
+        &r_2,
+        &s_2,
+        &pk_vec.clone(),
+        &R_vec.clone(),
+        &S_vec.clone(),
+        &message,
+    )
+    .expect("Multisig Round 2 failed");
 
     // All signers share their share `z` with a signer wishing to combine them
     // all
     let z_vec = vec![z_1, z_2];
 
     // A signer combines all the shares into a signature `sig`
-    let sig = SecretKey::multisig_combine(z_vec, pk_vec, R_vec, S_vec, message);
+    let sig =
+        multisig::multisig_combine(&z_vec, &pk_vec, &R_vec, &S_vec, &message);
 
     // Anyone can verify using the sum of all the signers' public keys
     let pk = PublicKey::from(pk_1.as_ref() + pk_2.as_ref());
@@ -91,19 +93,19 @@ fn duplicated_nonce() {
 
     let message = BlsScalar::random(&mut rng);
 
-    let (r, s, R, S) = SecretKey::multisig_sign_round_1(&mut rng);
+    let (r, s, R, S) = multisig::multisig_sign_round_1(&mut rng);
 
     let R_vec = vec![R, R]; // duplicated nonce
     let S_vec = vec![S, S]; // duplicated nonce
 
-    let _z = sk
-        .multisig_sign_round_2(
-            r,
-            s,
-            pk_vec.clone(),
-            R_vec.clone(),
-            S_vec.clone(),
-            message,
-        )
-        .expect("Multisig Round 2 failed");
+    let _z = multisig::multisig_sign_round_2(
+        &sk,
+        &r,
+        &s,
+        &pk_vec.clone(),
+        &R_vec.clone(),
+        &S_vec.clone(),
+        &message,
+    )
+    .expect("Multisig Round 2 failed");
 }

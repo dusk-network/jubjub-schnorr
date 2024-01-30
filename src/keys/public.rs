@@ -337,7 +337,7 @@ pub struct PublicKeyVarGen {
 #[cfg(feature = "var_generator")]
 impl From<&SecretKeyVarGen> for PublicKeyVarGen {
     fn from(sk: &SecretKeyVarGen) -> Self {
-        let generator = sk.generator().clone();
+        let generator = *sk.generator();
         let pk = generator * sk.secret_key();
 
         PublicKeyVarGen { pk, generator }
@@ -416,7 +416,7 @@ impl PublicKeyVarGen {
         let point_1 =
             (*self.generator() * sig_var_gen.u()) + (self.public_key() * c);
 
-        point_1.eq(&sig_var_gen.R())
+        point_1.eq(sig_var_gen.R())
     }
 
     /// Create a [`PublicKeyVarGen`] from its internal parts
