@@ -37,7 +37,7 @@ use crate::{PublicKey, SecretKey, Signature};
 ///
 /// Returns two [`JubJubScalar`] being the scalars (r, s), and
 /// two [`JubJubExtended`] being the points (R, S)
-pub fn multisig_sign_round_1<R>(
+pub fn sign_round_1<R>(
     mut rng: &mut R,
 ) -> (JubJubScalar, JubJubScalar, JubJubExtended, JubJubExtended)
 where
@@ -60,7 +60,7 @@ where
 /// ## Returns
 ///
 /// Returns a [`JubJubScalar`] being the signature share 'z'
-pub fn multisig_sign_round_2(
+pub fn sign_round_2(
     sk: &SecretKey,
     r: &JubJubScalar,
     s: &JubJubScalar,
@@ -87,7 +87,7 @@ pub fn multisig_sign_round_2(
 
 /// Combines all the multisignature shares `z_vec` and returns
 /// a new signature [`JubJubScalar`]
-pub fn multisig_combine(
+pub fn combine(
     z_vec: &[JubJubScalar],
     pk_vec: &[PublicKey],
     R_vec: &[JubJubExtended],
