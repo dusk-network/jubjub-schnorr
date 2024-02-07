@@ -22,7 +22,7 @@
 //! ## Example
 //!
 //! Generate and verify a multisignature:
-//! ```
+//! ```rust
 //! use dusk_bls12_381::BlsScalar;
 //! use ff::Field;
 //! use jubjub_schnorr::multisig;
