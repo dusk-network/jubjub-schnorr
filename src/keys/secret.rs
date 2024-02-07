@@ -156,7 +156,7 @@ impl SecretKey {
         // Create random scalar value for scheme, r
         let r = JubJubScalar::random(rng);
 
-        // Derive a points from r, to sign with the message
+        // Derive a point from r, to sign with the message
         // R = r * G
         let R = GENERATOR_EXTENDED * r;
 

@@ -32,3 +32,7 @@ pub use keys::public::PublicKeyVarGen;
 pub use keys::secret::SecretKeyVarGen;
 #[cfg(feature = "var_generator")]
 pub use signatures::SignatureVarGen;
+
+#[cfg(feature = "multisig")]
+#[allow(non_snake_case)]
+pub mod multisig;

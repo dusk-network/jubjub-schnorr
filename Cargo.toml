@@ -60,6 +60,7 @@ rkyv-impl = [
 ]
 double = []
 var_generator = []
+multisig = []
 
 [[test]]
 name = "double"
@@ -75,6 +76,11 @@ required-features = ["var_generator"]
 name = "gadgets"
 path = "tests/gadgets.rs"
 required-features = ["alloc"]
+
+[[test]]
+name = "multisig"
+path = "tests/schnorr_multisig.rs"
+required-features = ["multisig"]
 
 # we use the approach from https://github.com/victe/rust-latex-doc-minimal-example
 # to render latex on docs.rs
