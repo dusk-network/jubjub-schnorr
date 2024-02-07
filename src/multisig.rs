@@ -15,9 +15,76 @@
 //!
 //! reference: https://eprint.iacr.org/2021/1375.pdf - pag. 19
 //!
-//! # Feature
+//! ## Feature
 //!
 //! Only available with the "multisig" feature enabled.
+//!
+//! ## Example
+//!
+//! Generate and verify a multisignature:
+//! ```
+//! use dusk_bls12_381::BlsScalar;
+//! use ff::Field;
+//! use jubjub_schnorr::multisig;
+//! use jubjub_schnorr::{PublicKey, SecretKey};
+//! use rand::{rngs::StdRng, SeedableRng};
+//!
+//! // signer 1
+//! let sk_1 = SecretKey::random(&mut rng);
+//! let pk_1 = PublicKey::from(&sk_1);
+//!
+//! // signer 2
+//! let sk_2 = SecretKey::random(&mut rng);
+//! let pk_2 = PublicKey::from(&sk_2);
+//!
+//! let message = BlsScalar::random(&mut rng);
+//!
+//! // Key verification: all signers send their public key to
+//! // all the other signers, along with a Schnorr signature
+//! // that proves knowledge of the corresponding secret key
+//! let pk_vec = vec![pk_1, pk_2];
+//!
+//! // First round: all signers compute the following elements
+//! let (r_1, s_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
+//! let (r_2, s_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
+//!
+//! // All signers share `R_vec` and `S_vec` with all the other signers
+//! let R_vec = vec![R_1, R_2];
+//! let S_vec = vec![S_1, S_2];
+//!
+//! // Second round: all the signers compute their share `z`
+//! let z_1 = multisig::sign_round_2(
+//!     &sk_1,
+//!     &r_1,
+//!     &s_1,
+//!     &pk_vec.clone(),
+//!     &R_vec.clone(),
+//!     &S_vec.clone(),
+//!     &message,
+//! )
+//! .expect("Multisig Round 2 shouldn't fail");
+//! let z_2 = multisig::sign_round_2(
+//!     &sk_2,
+//!     &r_2,
+//!     &s_2,
+//!     &pk_vec.clone(),
+//!     &R_vec.clone(),
+//!     &S_vec.clone(),
+//!     &message,
+//! )
+//! .expect("Multisig Round 2 shouldn't fail");
+//!
+//! // All signers share their share `z` with a signer wishing to combine them
+//! // all
+//! let z_vec = vec![z_1, z_2];
+//!
+//! // A signer combines all the shares into a signature `sig`
+//! let sig = multisig::combine(&z_vec, &pk_vec, &R_vec, &S_vec, &message);
+//!
+//! // Anyone can verify using the sum of all the signers' public keys
+//! let pk = PublicKey::from(pk_1.as_ref() + pk_2.as_ref());
+//! assert!(pk.verify(&sig, message));
+//! ```
 
 extern crate alloc;
 use alloc::vec;
@@ -32,6 +99,10 @@ use crate::{PublicKey, SecretKey, Signature};
 
 /// Performs the first round to sign a message using the
 /// multisignature scheme
+///
+/// ## Parameters
+///
+/// - `rng`: Reference to the random number generator.
 ///
 /// ## Returns
 ///
@@ -56,6 +127,16 @@ where
 
 /// Performs the second round to sign a message using the
 /// multisignature scheme
+///
+/// ## Parameters
+///
+/// - `sk`: Reference to the random number generator.
+/// - `r`: Random value.
+/// - `s`: Random value.
+/// - `pk_vec`: Vector of public keys.
+/// - `R_vec`: Vector of R values.
+/// - `S_vec`: Vector of S values.
+/// - `msg`: Message to sign.
 ///
 /// ## Returns
 ///
@@ -85,8 +166,19 @@ pub fn sign_round_2(
     Ok(r + (s * a) - (c * sk.as_ref()))
 }
 
-/// Combines all the multisignature shares `z_vec` and returns
-/// a new signature [`JubJubScalar`]
+/// Combines all the multisignature shares `z_vec`.
+///
+/// ## Parameters
+///
+/// - `z_vec`: Vector of shares.
+/// - `pk_vec`: Vector of public keys.
+/// - `R_vec`: Vector of R values.
+/// - `S_vec`: Vector of S values.
+/// - `msg`: Message to sign.
+///
+/// ## Returns
+///
+/// Returns a new signature [`JubJubScalar`]
 pub fn combine(
     z_vec: &[JubJubScalar],
     pk_vec: &[PublicKey],

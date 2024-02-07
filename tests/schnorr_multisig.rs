@@ -9,8 +9,7 @@ use dusk_bytes::Serializable;
 use ff::Field;
 use jubjub_schnorr::multisig;
 use jubjub_schnorr::{PublicKey, SecretKey, Signature};
-use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::{rngs::StdRng, SeedableRng};
 
 #[test]
 #[allow(non_snake_case)]
@@ -50,7 +49,7 @@ fn sign_verify() {
         &S_vec.clone(),
         &message,
     )
-    .expect("Multisig Round 2 failed");
+    .expect("Multisig Round 2 shouldn't fail");
     let z_2 = multisig::sign_round_2(
         &sk_2,
         &r_2,
@@ -60,7 +59,7 @@ fn sign_verify() {
         &S_vec.clone(),
         &message,
     )
-    .expect("Multisig Round 2 failed");
+    .expect("Multisig Round 2 shouldn't fail");
 
     // All signers share their share `z` with a signer wishing to combine them
     // all
@@ -106,5 +105,5 @@ fn duplicated_nonce() {
         &S_vec.clone(),
         &message,
     )
-    .expect("Multisig Round 2 failed");
+    .expect("Multisig Round 2 should fail");
 }
