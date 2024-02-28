@@ -8,7 +8,7 @@ jobs:
     uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
     with:
       clippy_default: false
-      clippy_args: --features=rkyv/size_32,double,var_generator
+      clippy_args: --features=rkyv/size_32,double,var_generator,multisig
 
   dusk_analyzer:
     name: Dusk Analyzer
@@ -26,7 +26,7 @@ jobs:
     name: Nightly tests std
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=double,var_generator
+      test_flags: --features=double,var_generator,multisig
 
   test_nightly_std_double_compiles:
     name: Nightly std feature=double tests compile
@@ -40,8 +40,14 @@ jobs:
     with:
       test_flags: --features=var_generator --no-run
 
+  test_nightly_std_multisig_compiles:
+    name: Nightly std feature=multisig tests compile
+    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
+    with:
+      test_flags: --features=multisig --no-run
+
   test_nightly_no_std:
     name: Nightly tests no_std
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --no-default-features --features=double,var_generator
+      test_flags: --no-default-features --features=double,var_generator,multisig
