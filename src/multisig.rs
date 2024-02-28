@@ -29,6 +29,8 @@
 //! use jubjub_schnorr::{PublicKey, SecretKey};
 //! use rand::{rngs::StdRng, SeedableRng};
 //!
+//! let mut rng = StdRng::seed_from_u64(2321u64);
+//!
 //! // signer 1
 //! let sk_1 = SecretKey::random(&mut rng);
 //! let pk_1 = PublicKey::from(&sk_1);
