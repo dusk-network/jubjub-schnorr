@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Eq` trait to all public keys structs [#9]
+
 ## [0.2.1] - 2024-02-28
 
 ### Added
@@ -26,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#9]: https://github.com/dusk-network/jubjub-schnorr/issues/9
 [#3]: https://github.com/dusk-network/jubjub-schnorr/issues/3
 [#2]: https://github.com/dusk-network/jubjub-schnorr/issues/2
 
