@@ -50,7 +50,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// let sk = SecretKey::random(&mut rng);
 /// let pk = PublicKey::from(&sk);
 /// ```
-#[derive(Default, Copy, Clone, Debug, PartialEq)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
@@ -179,7 +179,7 @@ impl PublicKey {
 ///
 /// [`G`]: `GENERATOR_EXTENDED`
 /// [`G'`]: `GENERATOR_NUMS_EXTENDED`
-#[derive(Default, Copy, Clone, Debug, PartialEq)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
@@ -322,7 +322,7 @@ impl Serializable<64> for PublicKeyDouble {
 /// let sk = SecretKeyVarGen::random(&mut rng);
 /// let pk = PublicKeyVarGen::from(&sk);
 /// ```
-#[derive(Default, Copy, Clone, Debug, PartialEq)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
