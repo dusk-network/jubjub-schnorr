@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `Zeroize` trait implementation for `SecretKey` [#12]
+
+### Removed
+
+- Remove `Copy` trait from `SecretKey` [#12]
+- Remove `From<SecretKey>` for `PublicKey`, use `From<&SecretKey>` instead [#12]
+
 ## [0.2.2] - 2024-03-11
 
 ### Added
@@ -32,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#12]: https://github.com/dusk-network/jubjub-schnorr/issues/12
 [#9]: https://github.com/dusk-network/jubjub-schnorr/issues/9
 [#3]: https://github.com/dusk-network/jubjub-schnorr/issues/3
 [#2]: https://github.com/dusk-network/jubjub-schnorr/issues/2

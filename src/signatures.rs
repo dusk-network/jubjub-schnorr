@@ -173,7 +173,7 @@ pub(crate) fn challenge_hash(
 ///
 /// let sk = SecretKey::random(&mut rng);
 /// let message = BlsScalar::random(&mut rng);
-/// let pk_double: PublicKeyDouble = sk.into();
+/// let pk_double = PublicKeyDouble::from(&sk);
 ///
 /// let signature = sk.sign_double(&mut rng, message);
 ///

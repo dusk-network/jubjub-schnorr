@@ -273,13 +273,6 @@ impl From<&SecretKey> for PublicKeyDouble {
 }
 
 #[cfg(feature = "double")]
-impl From<SecretKey> for PublicKeyDouble {
-    fn from(sk: SecretKey) -> Self {
-        (&sk).into()
-    }
-}
-
-#[cfg(feature = "double")]
 impl Serializable<64> for PublicKeyDouble {
     type Error = Error;
 
