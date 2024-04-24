@@ -17,7 +17,7 @@ fn sign_verify() {
 
     let sk = SecretKey::random(&mut rng);
     let message = BlsScalar::random(&mut rng);
-    let pk_double: PublicKeyDouble = sk.into();
+    let pk_double = PublicKeyDouble::from(&sk);
 
     let sig = sk.sign_double(&mut rng, message);
 
@@ -35,7 +35,7 @@ fn test_wrong_keys() {
 
     // Derive random public key
     let wrong_sk = SecretKey::random(&mut rng);
-    let pk_double: PublicKeyDouble = wrong_sk.into();
+    let pk_double = PublicKeyDouble::from(&wrong_sk);
 
     assert!(!pk_double.verify(&sig, message));
 }

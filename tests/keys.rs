@@ -60,6 +60,16 @@ fn partial_eq_pk() {
 }
 
 #[test]
+fn test_zeroize() {
+    use zeroize::Zeroize;
+
+    let mut sk = SecretKey::from(JubJubScalar::from(42u64));
+    sk.zeroize();
+
+    assert_eq!(sk, SecretKey::from(JubJubScalar::default()));
+}
+
+#[test]
 #[cfg(feature = "double")]
 fn partial_eq_pk_double() {
     let sk1 = SecretKey::random(&mut OsRng);

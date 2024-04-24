@@ -16,6 +16,7 @@ use dusk_bytes::{Error, Serializable};
 use dusk_jubjub::{JubJubScalar, GENERATOR_EXTENDED};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
+use zeroize::Zeroize;
 
 use crate::{PublicKey, Signature};
 
@@ -37,6 +38,12 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// Structure representing a [`SecretKey`], represented as a private scalar
 /// in the JubJub scalar field.
 ///
+/// ## Safety
+///
+/// To ensure that no secret information lingers in memory after the variable
+/// goes out of scope, we advice calling `zeroize` before the variable goes out
+/// of scope.
+///
 /// ## Examples
 ///
 /// Generate a random `SecretKey`:
@@ -44,12 +51,17 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// use jubjub_schnorr::SecretKey;
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
+/// use zeroize::Zeroize;
 ///
 /// let mut rng = StdRng::seed_from_u64(12345);
-/// let sk = SecretKey::random(&mut rng);
+/// let mut sk = SecretKey::random(&mut rng);
+///
+/// // do something with the sk
+///
+/// sk.zeroize();
 /// ```
 #[allow(non_snake_case)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Zeroize)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
