@@ -14,10 +14,10 @@
 //! they provide the basis for signature verification.
 
 use dusk_bls12_381::BlsScalar;
-use dusk_bytes::{Error, Serializable};
+use dusk_bytes::{Error as BytesError, Serializable};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, GENERATOR_EXTENDED};
 
-use crate::{SecretKey, Signature};
+use crate::{Error, SecretKey, Signature};
 
 #[cfg(feature = "double")]
 use crate::SignatureDouble;
@@ -85,16 +85,16 @@ impl AsRef<JubJubExtended> for PublicKey {
 }
 
 impl Serializable<32> for PublicKey {
-    type Error = Error;
+    type Error = BytesError;
 
     fn to_bytes(&self) -> [u8; 32] {
         JubJubAffine::from(self.0).to_bytes()
     }
 
-    fn from_bytes(bytes: &[u8; 32]) -> Result<Self, Error> {
+    fn from_bytes(bytes: &[u8; 32]) -> Result<Self, Self::Error> {
         let pk: JubJubAffine = match JubJubAffine::from_bytes(*bytes).into() {
             Some(pk) => pk,
-            None => return Err(Error::InvalidData),
+            None => return Err(BytesError::InvalidData),
         };
         Ok(Self(pk.into()))
     }
@@ -117,8 +117,16 @@ impl PublicKey {
     ///
     /// ## Returns
     ///
-    /// A boolean value indicating the validity of the Schnorr [`Signature`].
-    pub fn verify(&self, sig: &Signature, message: BlsScalar) -> bool {
+    /// Returns a `Result` indicating if the Schnorr [`Signature`] is valid.
+    pub fn verify(
+        &self,
+        sig: &Signature,
+        message: BlsScalar,
+    ) -> Result<(), Error> {
+        if !self.is_valid() || !sig.is_valid() {
+            return Err(Error::InvalidPoint);
+        }
+
         // Compute challenge value, c = H(R||pk||m);
         let c = crate::signatures::challenge_hash(sig.R(), *self, message);
 
@@ -126,7 +134,11 @@ impl PublicKey {
         // u * G + c * PK
         let point_1 = (GENERATOR_EXTENDED * sig.u()) + (self.as_ref() * c);
 
-        point_1.eq(sig.R())
+        if !point_1.eq(sig.R()) {
+            return Err(Error::InvalidSignature);
+        }
+
+        Ok(())
     }
 
     /// Create a [`PublicKey`] from its internal parts.
@@ -141,6 +153,21 @@ impl PublicKey {
     /// counterpart - otherwise this key will be of no use.
     pub const fn from_raw_unchecked(key: JubJubExtended) -> Self {
         Self(key)
+    }
+
+    /// Returns true if the inner point is valid according to certain criteria.
+    ///
+    /// A [`PublicKey`] is considered valid if its inner point meets the
+    /// following conditions:
+    /// 1. It is free of an $h$-torsion component and exists within the
+    ///    $q$-order subgroup $\mathbb{G}_2$.
+    /// 2. It is on the curve.
+    /// 3. It is not the identity.
+    pub fn is_valid(&self) -> bool {
+        let is_identity: bool = self.0.is_identity().into();
+        self.0.is_torsion_free().into()
+            && self.0.is_on_curve().into()
+            && !is_identity
     }
 }
 
@@ -216,14 +243,18 @@ impl PublicKeyDouble {
     ///
     /// # Returns
     ///
-    /// A boolean value indicating the validity of the Schnorr
-    /// [`SignatureDouble`].
+    /// Returns a `Result` indicating if the Schnorr [`SignatureDouble`] is
+    /// valid.
     #[allow(non_snake_case)]
     pub fn verify(
         &self,
         sig_double: &SignatureDouble,
         message: BlsScalar,
-    ) -> bool {
+    ) -> Result<(), Error> {
+        if !self.is_valid() || !sig_double.is_valid() {
+            return Err(Error::InvalidPoint);
+        }
+
         // Compute challenge value, c = H(R||R_prime||pk||m);
         let c = crate::signatures::challenge_hash_double(
             sig_double.R(),
@@ -241,7 +272,11 @@ impl PublicKeyDouble {
 
         // Verify point equations
         // point_1 = R && point_2 = R_prime
-        point_1.eq(sig_double.R()) && point_2.eq(sig_double.R_prime())
+        if !(point_1.eq(sig_double.R()) && point_2.eq(sig_double.R_prime())) {
+            return Err(Error::InvalidSignature);
+        }
+
+        Ok(())
     }
 
     /// Create a [`PublicKeyDouble`] from its internal parts
@@ -259,6 +294,29 @@ impl PublicKeyDouble {
         pk_prime: JubJubExtended,
     ) -> Self {
         Self(pk, pk_prime)
+    }
+
+    /// Returns true if the inner points are valid according to certain
+    /// criteria.
+    ///
+    /// A [`PublicKeyDouble`] is considered valid if its inner points meets the
+    /// following conditions:
+    /// 1. It is free of an $h$-torsion component and exists within the
+    ///    $q$-order subgroup $\mathbb{G}_2$.
+    /// 2. It is on the curve.
+    /// 3. It is not the identity.
+    pub fn is_valid(&self) -> bool {
+        let is_identity: bool = self.0.is_identity().into();
+        let point_0_valid = self.0.is_torsion_free().into()
+            && self.0.is_on_curve().into()
+            && !is_identity;
+
+        let is_identity: bool = self.1.is_identity().into();
+        let point_1_valid = self.1.is_torsion_free().into()
+            && self.1.is_on_curve().into()
+            && !is_identity;
+
+        point_0_valid && point_1_valid
     }
 }
 
@@ -390,13 +448,17 @@ impl PublicKeyVarGen {
     ///
     /// ## Returns
     ///
-    /// A boolean value indicating the validity of the Schnorr
-    /// [`SignatureVarGen`].
+    /// Returns a `Result` indicating if the Schnorr [`SignatureVarGen`] is
+    /// valid.
     pub fn verify(
         &self,
         sig_var_gen: &SignatureVarGen,
         message: BlsScalar,
-    ) -> bool {
+    ) -> Result<(), Error> {
+        if !self.is_valid() || !sig_var_gen.is_valid() {
+            return Err(Error::InvalidPoint);
+        }
+
         // Compute challenge value, c = H(R||pk||m);
         let c = crate::signatures::challenge_hash(
             sig_var_gen.R(),
@@ -409,7 +471,11 @@ impl PublicKeyVarGen {
         let point_1 =
             (*self.generator() * sig_var_gen.u()) + (self.public_key() * c);
 
-        point_1.eq(sig_var_gen.R())
+        if !point_1.eq(sig_var_gen.R()) {
+            return Err(Error::InvalidSignature);
+        }
+
+        Ok(())
     }
 
     /// Create a [`PublicKeyVarGen`] from its internal parts
@@ -427,5 +493,27 @@ impl PublicKeyVarGen {
         generator: JubJubExtended,
     ) -> Self {
         Self { pk, generator }
+    }
+
+    /// Returns true if the inner point is valid according to certain criteria.
+    ///
+    /// A [`PublicKeyVarGen`] is considered valid if its inner points meets the
+    /// following conditions:
+    /// 1. It is free of an $h$-torsion component and exists within the
+    ///    $q$-order subgroup $\mathbb{G}_2$.
+    /// 2. It is on the curve.
+    /// 3. It is not the identity.
+    pub fn is_valid(&self) -> bool {
+        let is_identity: bool = self.pk.is_identity().into();
+        let pk_is_valid = self.pk.is_torsion_free().into()
+            && self.pk.is_on_curve().into()
+            && !is_identity;
+
+        let is_identity: bool = self.generator.is_identity().into();
+        let gen_is_valid = self.generator.is_torsion_free().into()
+            && self.generator.is_on_curve().into()
+            && !is_identity;
+
+        pk_is_valid && gen_is_valid
     }
 }

@@ -7,6 +7,7 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
 
+mod error;
 mod keys;
 mod signatures;
 
@@ -17,6 +18,7 @@ pub mod gadgets;
 #[cfg(feature = "double")]
 pub type Proof = signatures::SignatureDouble;
 
+pub use error::Error;
 pub use keys::public::PublicKey;
 pub use keys::secret::SecretKey;
 pub use signatures::Signature;

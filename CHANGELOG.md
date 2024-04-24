@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change `verify` methods to return a `Result` instead of a `bool` [#14]
+
 ### Added
 
 - Add `Zeroize` trait implementation for `SecretKey` [#12]
+- Add enum `Error` to differeniate different errors in signature verification [#14]
+- Add point validity checks in signature verifications [#14]
 
 ### Removed
 
@@ -41,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#14]: https://github.com/dusk-network/jubjub-schnorr/issues/14
 [#12]: https://github.com/dusk-network/jubjub-schnorr/issues/12
 [#9]: https://github.com/dusk-network/jubjub-schnorr/issues/9
 [#3]: https://github.com/dusk-network/jubjub-schnorr/issues/3
