@@ -139,14 +139,14 @@ fn main() {
     // Standard Schnorr signature scheme:
     let pk = PublicKey::from(&sk);
     let signature = sk.sign(&mut rng, message);
-    assert!(pk.verify(&signature, message), "The signature should be valid.");
+    assert!(pk.verify(&signature, message).is_ok(), "The signature should be valid.");
 
     // Double Dusk-Schnorr signature scheme:
     #[cfg(features = "double")]
     {
         let pk = jubjub_schnorr::PublicKeyDouble::from(&sk);
         let signature = sk.sign_double(&mut rng, message);
-        assert!(pk.verify(&signature, message), "The signature should be valid.");
+        assert!(pk.verify(&signature, message).is_ok(), "The signature should be valid.");
     }
 
     // Dusk-Schnorr signature scheme with variable generator:
@@ -156,7 +156,7 @@ fn main() {
         let sk = sk.with_variable_generator(generator);
         let pk = jubjub_schnorr::PublicKeyVarGen::from(&sk);
         let signature = sk.sign(&mut rng, message);
-        assert!(pk.verify(&signature, message), "The signature should be valid.");
+        assert!(pk.verify(&signature, message).is_ok(), "The signature should be valid.");
     }
 }
 ```

@@ -6,8 +6,11 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
+use dusk_jubjub::{JubJubScalar, GENERATOR_EXTENDED};
 use ff::Field;
-use jubjub_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
+use jubjub_schnorr::{
+    Error, PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen,
+};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -21,7 +24,7 @@ fn sign_verify() {
 
     let sig = sk.sign(&mut rng, message);
 
-    assert!(pk.verify(&sig, message));
+    assert!(pk.verify(&sig, message).is_ok());
 }
 
 #[test]
@@ -36,7 +39,10 @@ fn test_wrong_keys() {
     // Derive random public key
     let pk = PublicKeyVarGen::from(&SecretKeyVarGen::random(&mut rng));
 
-    assert!(!pk.verify(&sig, message));
+    assert_eq!(
+        Error::InvalidSignature,
+        pk.verify(&sig, message).unwrap_err()
+    );
 }
 
 #[test]
@@ -48,4 +54,16 @@ fn to_from_bytes() {
 
     let sig = sk.sign(&mut rng, message);
     assert_eq!(sig, SignatureVarGen::from_bytes(&sig.to_bytes()).unwrap());
+}
+
+#[test]
+fn sign_verify_identity_fails() {
+    let mut rng = StdRng::seed_from_u64(0xbeef);
+    let msg = BlsScalar::random(&mut rng);
+    let sk =
+        SecretKeyVarGen::new(JubJubScalar::zero().into(), GENERATOR_EXTENDED);
+    let pk = PublicKeyVarGen::from(&sk);
+    let sig = sk.sign(&mut rng, msg);
+
+    assert_eq!(pk.verify(&sig, msg).unwrap_err(), Error::InvalidPoint);
 }

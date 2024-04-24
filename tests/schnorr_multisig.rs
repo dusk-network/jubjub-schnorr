@@ -8,7 +8,7 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use ff::Field;
 use jubjub_schnorr::multisig;
-use jubjub_schnorr::{PublicKey, SecretKey, Signature};
+use jubjub_schnorr::{Error, PublicKey, SecretKey, Signature};
 use rand::{rngs::StdRng, SeedableRng};
 
 #[test]
@@ -70,11 +70,14 @@ fn sign_verify() {
 
     // Anyone can verify using the sum of all the signers' public keys
     let pk = PublicKey::from(pk_1.as_ref() + pk_2.as_ref());
-    assert!(pk.verify(&sig, message));
+    assert!(pk.verify(&sig, message).is_ok());
 
     // We test using a wrong public key
     let pk_wrong = PublicKey::from(pk_1.as_ref() + pk_1.as_ref());
-    assert!(!pk_wrong.verify(&sig, message));
+    assert_eq!(
+        Error::InvalidSignature,
+        pk_wrong.verify(&sig, message).unwrap_err()
+    );
 
     // We test `to_from_bytes``
     assert_eq!(sig, Signature::from_bytes(&sig.to_bytes()).unwrap());

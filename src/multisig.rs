@@ -85,7 +85,7 @@
 //!
 //! // Anyone can verify using the sum of all the signers' public keys
 //! let pk = PublicKey::from(pk_1.as_ref() + pk_2.as_ref());
-//! assert!(pk.verify(&sig, message));
+//! assert!(pk.verify(&sig, message).is_ok());
 //! ```
 
 extern crate alloc;
@@ -97,7 +97,7 @@ use dusk_jubjub::{JubJubExtended, GENERATOR_EXTENDED};
 use dusk_plonk::prelude::*;
 use rand_core::{CryptoRng, RngCore};
 
-use crate::{PublicKey, SecretKey, Signature};
+use crate::{Error, PublicKey, SecretKey, Signature};
 
 /// Performs the first round to sign a message using the
 /// multisignature scheme
@@ -151,13 +151,13 @@ pub fn sign_round_2(
     R_vec: &[JubJubExtended],
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
-) -> Result<JubJubScalar, MultisigError> {
+) -> Result<JubJubScalar, Error> {
     // Check if (R_i == R_j) || (S_i == S_j) for any i != j
     // and return error if so
     for i in 0..R_vec.len() {
         for j in (i + 1)..R_vec.len() {
             if R_vec[i] == R_vec[j] || S_vec[i] == S_vec[j] {
-                return Err(MultisigError::DuplicatedNonce);
+                return Err(Error::DuplicatedNonce);
             }
         }
     }
@@ -252,10 +252,4 @@ fn multisig_common(
     ]);
 
     (a, c, RSa)
-}
-
-/// Error variants for the multisignature scheme
-#[derive(Debug)]
-pub enum MultisigError {
-    DuplicatedNonce,
 }

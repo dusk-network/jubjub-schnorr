@@ -49,7 +49,7 @@ use crate::PublicKey;
 /// let signature = sk.sign(&mut rng, message);
 ///
 /// // Verify the signature
-/// assert!(pk.verify(&signature, message));
+/// assert!(pk.verify(&signature, message).is_ok());
 /// ```
 ///
 /// [`SecretKey`]: [`crate::SecretKey`]
@@ -105,6 +105,21 @@ impl Signature {
         let r = composer.append_point(self.R);
 
         (u, r)
+    }
+
+    /// Returns true if the inner point is valid according to certain criteria.
+    ///
+    /// A [`Signature`] is considered valid if its inner point `R` meets the
+    /// following conditions:
+    /// 1. It is free of an $h$-torsion component and exists within the
+    ///    $q$-order subgroup $\mathbb{G}_2$.
+    /// 2. It is on the curve.
+    /// 3. It is not the identity.
+    pub fn is_valid(&self) -> bool {
+        let is_identity: bool = self.R.is_identity().into();
+        self.R.is_torsion_free().into()
+            && self.R.is_on_curve().into()
+            && !is_identity
     }
 }
 
@@ -177,7 +192,7 @@ pub(crate) fn challenge_hash(
 ///
 /// let signature = sk.sign_double(&mut rng, message);
 ///
-/// assert!(pk_double.verify(&signature, message));
+/// assert!(pk_double.verify(&signature, message).is_ok());
 /// ```
 ///
 /// [`G`]: `GENERATOR_EXTENDED`
@@ -251,6 +266,27 @@ impl SignatureDouble {
         let r_p = composer.append_point(self.R_prime());
 
         (u, r, r_p)
+    }
+
+    /// Returns true if the inner point is valid according to certain criteria.
+    ///
+    /// A [`DoubleSignature`] is considered valid if its inner points `R` and
+    /// `R_prime` meet the following conditions:
+    /// 1. It is free of an $h$-torsion component and exists within the
+    ///    $q$-order subgroup $\mathbb{G}_2$.
+    /// 2. It is on the curve.
+    /// 3. It is not the identity.
+    pub fn is_valid(&self) -> bool {
+        let is_identity: bool = self.R.is_identity().into();
+        let r_is_valid = self.R.is_torsion_free().into()
+            && self.R.is_on_curve().into()
+            && !is_identity;
+
+        let is_identity: bool = self.R_prime.is_identity().into();
+        let r_prime_is_valid = self.R_prime.is_torsion_free().into()
+            && self.R_prime.is_on_curve().into()
+            && !is_identity;
+        r_is_valid && r_prime_is_valid
     }
 }
 
@@ -339,7 +375,7 @@ pub(crate) fn challenge_hash_double(
 /// let signature = sk.sign(&mut rng, message);
 ///
 /// // Verify the signature
-/// assert!(pk.verify(&signature, message));
+/// assert!(pk.verify(&signature, message).is_ok());
 /// ```
 ///
 /// [`SecretKeyVarGen`]: [`crate::SecretKeyVarGen`]
@@ -397,6 +433,21 @@ impl SignatureVarGen {
         let r = composer.append_point(self.R);
 
         (u, r)
+    }
+
+    /// Returns true if the inner point is valid according to certain criteria.
+    ///
+    /// A [`SignatureVarGen`] is considered valid if its inner point `R` meets
+    /// the following conditions:
+    /// 1. It is free of an $h$-torsion component and exists within the
+    ///    $q$-order subgroup $\mathbb{G}_2$.
+    /// 2. It is on the curve.
+    /// 3. It is not the identity.
+    pub fn is_valid(&self) -> bool {
+        let is_identity: bool = self.R.is_identity().into();
+        self.R.is_torsion_free().into()
+            && self.R.is_on_curve().into()
+            && !is_identity
     }
 }
 
