@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Change `verify` methods to return a `Result` instead of a `bool` [#14]
+- Update `dusk-poseidon` to v0.38.0
 
 ### Added
 

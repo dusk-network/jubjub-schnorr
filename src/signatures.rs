@@ -13,7 +13,7 @@
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 use dusk_jubjub::{JubJubExtended, JubJubScalar};
 use dusk_plonk::prelude::*;
-use dusk_poseidon::sponge::truncated::hash;
+use dusk_poseidon::{Domain, Hash};
 
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
@@ -152,13 +152,16 @@ pub(crate) fn challenge_hash(
     let R_coordinates = R.to_hash_inputs();
     let pk_coordinates = pk.as_ref().to_hash_inputs();
 
-    hash(&[
-        R_coordinates[0],
-        R_coordinates[1],
-        pk_coordinates[0],
-        pk_coordinates[1],
-        message,
-    ])
+    Hash::digest_truncated(
+        Domain::Other,
+        &[
+            R_coordinates[0],
+            R_coordinates[1],
+            pk_coordinates[0],
+            pk_coordinates[1],
+            message,
+        ],
+    )[0]
 }
 
 /// Structure representing a Schnorr signature with a double-key mechanism.
@@ -331,15 +334,18 @@ pub(crate) fn challenge_hash_double(
     let R_p_coordinates = R_prime.to_hash_inputs();
     let pk_coordinates = pk.as_ref().to_hash_inputs();
 
-    hash(&[
-        R_coordinates[0],
-        R_coordinates[1],
-        R_p_coordinates[0],
-        R_p_coordinates[1],
-        pk_coordinates[0],
-        pk_coordinates[1],
-        message,
-    ])
+    Hash::digest_truncated(
+        Domain::Other,
+        &[
+            R_coordinates[0],
+            R_coordinates[1],
+            R_p_coordinates[0],
+            R_p_coordinates[1],
+            pk_coordinates[0],
+            pk_coordinates[1],
+            message,
+        ],
+    )[0]
 }
 
 /// An Schnorr SignatureVarGen, produced by signing a message with a
@@ -482,11 +488,14 @@ pub(crate) fn challenge_hash_var_gen(
     let R_coordinates = R.to_hash_inputs();
     let pk_coordinates = pk.public_key().to_hash_inputs();
 
-    hash(&[
-        R_coordinates[0],
-        R_coordinates[1],
-        pk_coordinates[0],
-        pk_coordinates[1],
-        message,
-    ])
+    Hash::digest_truncated(
+        Domain::Other,
+        &[
+            R_coordinates[0],
+            R_coordinates[1],
+            pk_coordinates[0],
+            pk_coordinates[1],
+            message,
+        ],
+    )[0]
 }

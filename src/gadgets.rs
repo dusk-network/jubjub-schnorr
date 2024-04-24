@@ -9,7 +9,7 @@
 //! This module provides Plonk gadgets for verification of Schnorr signatures.
 
 use dusk_jubjub::GENERATOR_EXTENDED;
-use dusk_poseidon::sponge;
+use dusk_poseidon::{Domain, HashGadget};
 
 #[cfg(feature = "double")]
 use dusk_jubjub::GENERATOR_NUMS_EXTENDED;
@@ -59,7 +59,8 @@ pub fn verify_signature(
     let pk_y = *pk.y();
 
     let challenge = [r_x, r_y, pk_x, pk_y, msg];
-    let challenge_hash = sponge::truncated::gadget(composer, &challenge);
+    let challenge_hash =
+        HashGadget::digest_truncated(Domain::Other, composer, &challenge)[0];
 
     let s_a = composer.component_mul_generator(u, GENERATOR_EXTENDED)?;
     let s_b = composer.component_mul_point(challenge_hash, pk);
@@ -118,7 +119,8 @@ pub fn verify_signature_double(
     let pk_y = *pk.y();
 
     let challenge = [r_x, r_y, r_p_x, r_p_y, pk_x, pk_y, msg];
-    let challenge_hash = sponge::truncated::gadget(composer, &challenge);
+    let challenge_hash =
+        HashGadget::digest_truncated(Domain::Other, composer, &challenge)[0];
 
     let s_a = composer.component_mul_generator(u, GENERATOR_EXTENDED)?;
     let s_b = composer.component_mul_point(challenge_hash, pk);
@@ -180,7 +182,8 @@ pub fn verify_signature_var_gen(
     let pk_y = *pk.y();
 
     let challenge = [r_x, r_y, pk_x, pk_y, msg];
-    let challenge_hash = sponge::truncated::gadget(composer, &challenge);
+    let challenge_hash =
+        HashGadget::digest_truncated(Domain::Other, composer, &challenge)[0];
 
     // TODO: check whether we need to append the generator as a constant
     let s_a = composer.component_mul_point(u, gen);
