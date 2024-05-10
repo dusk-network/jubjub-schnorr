@@ -8,7 +8,7 @@ jobs:
     uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
     with:
       clippy_default: false
-      clippy_args: --features=rkyv/size_32,double,var_generator,multisig
+      clippy_args: --features=rkyv/size_32,double,var_generator,multisig,zk
 
   dusk_analyzer:
     name: Dusk Analyzer
@@ -20,34 +20,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - run: cargo bench --no-run --features=double,var_generator
+      - run: cargo bench --no-run --features=double,var_generator,zk
 
-  test_nightly_std:
-    name: Nightly tests std
+  test_nightly:
+    name: Nightly tests
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=double,var_generator,multisig
+      test_flags: --features=double,var_generator,multisig,zk
 
-  test_nightly_std_double_compiles:
-    name: Nightly std feature=double tests compile
+  test_nightly_double_compiles:
+    name: Nightly feature=double tests compile
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
       test_flags: --features=double --no-run
 
-  test_nightly_std_var_generator_compiles:
-    name: Nightly std feature=var_generator tests compile
+  test_nightly_var_generator_compiles:
+    name: Nightly feature=var_generator tests compile
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
       test_flags: --features=var_generator --no-run
 
-  test_nightly_std_multisig_compiles:
-    name: Nightly std feature=multisig tests compile
+  test_nightly_multisig_compiles:
+    name: Nightly feature=multisig tests compile
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
       test_flags: --features=multisig --no-run
 
-  test_nightly_no_std:
-    name: Nightly tests no_std
+  test_nightly_gadgets_compile:
+    name: Nightly feature=zk tests compile
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --no-default-features --features=double,var_generator,multisig
+      test_flags: --features=double,var_generator,zk --no-run
