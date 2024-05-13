@@ -4,52 +4,47 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! # Schnorr Signature
-//!
-//! This module provides functionality for a Schnorr-based signature, a
-//! Schnorr-based double signature and a Schnorr-based signature with variable
-//! generator.
-
-#[cfg(feature = "double")]
-pub(crate) mod double;
-
-#[cfg(feature = "var_generator")]
-pub(crate) mod var_gen;
-
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 use dusk_poseidon::sponge::truncated::hash;
 
-use crate::PublicKey;
-
-#[cfg(feature = "zk")]
-use dusk_plonk::prelude::{Composer, Witness, WitnessPoint};
+use crate::PublicKeyVarGen;
 
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
-/// An Schnorr signature, produced by signing a message with a [`SecretKey`].
+#[cfg(feature = "zk")]
+use dusk_plonk::prelude::{Composer, Witness, WitnessPoint};
+
+/// An Schnorr SignatureVarGen, produced by signing a message with a
+/// [`SecretKeyVarGen`].
+///
+/// The `SignatureVarGen` struct encapsulates variables of the Schnorr scheme.
+///
+/// # Feature
+///
+/// Only available with the "var_generator" feature enabled.
 ///
 /// ## Fields
 ///
-/// - `u`: A [`JubJubScalar`]
-/// - `R`: A [`JubJubExtended`] point
+/// - `u`: A [`JubJubScalar`] scalar representing the Schnorr signature.
+/// - `R`: A [`JubJubExtended`] point produced as part of the Schnorr signature.
 ///
 /// ## Example
 ///
 /// ```
 /// use dusk_bls12_381::BlsScalar;
-/// use jubjub_schnorr::{PublicKey, SecretKey, Signature};
+/// use jubjub_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
 /// use rand::rngs::StdRng;
 /// use rand::SeedableRng;
 /// use ff::Field;
 ///
 /// let mut rng = StdRng::seed_from_u64(1234u64);
 ///
-/// let sk = SecretKey::random(&mut rng);
+/// let sk = SecretKeyVarGen::random(&mut rng);
 /// let message = BlsScalar::random(&mut rng);
-/// let pk = PublicKey::from(&sk);
+/// let pk = PublicKeyVarGen::from(&sk);
 ///
 /// // Sign the message
 /// let signature = sk.sign(&mut rng, message);
@@ -58,32 +53,32 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// assert!(pk.verify(&signature, message).is_ok());
 /// ```
 ///
-/// [`SecretKey`]: [`crate::SecretKey`]
+/// [`SecretKeyVarGen`]: [`crate::SecretKeyVarGen`]
+#[allow(non_snake_case)]
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Deserialize, Serialize),
     archive_attr(derive(bytecheck::CheckBytes))
 )]
-#[allow(non_snake_case)]
-pub struct Signature {
+pub struct SignatureVarGen {
     u: JubJubScalar,
     R: JubJubExtended,
 }
 
-impl Signature {
-    /// Exposes the `u` scalar of the Schnorr signature.
+impl SignatureVarGen {
+    /// Exposes the `u` scalar of the Schnorr SignatureVarGen.
     pub fn u(&self) -> &JubJubScalar {
         &self.u
     }
 
-    /// Exposes the `R` point of the Schnorr signature.
+    /// Exposes the `R` point of the Schnorr SignatureVarGen.
     #[allow(non_snake_case)]
     pub fn R(&self) -> &JubJubExtended {
         &self.R
     }
 
-    /// Creates a new single key [`Signature`] with the given parameters
+    /// Creates a new single key [`SignatureVarGen`] with the given parameters
     #[allow(non_snake_case)]
     pub(crate) fn new(u: JubJubScalar, R: JubJubExtended) -> Self {
         Self { u, R }
@@ -106,7 +101,7 @@ impl Signature {
     /// `R` fields.
     #[cfg(feature = "zk")]
     pub fn append(&self, composer: &mut Composer) -> (Witness, WitnessPoint) {
-        // TODO: check whether the signature should be appended as public
+        // TODO: check whether the signature should be public
         let u = composer.append_witness(self.u);
         let r = composer.append_point(self.R);
 
@@ -115,8 +110,8 @@ impl Signature {
 
     /// Returns true if the inner point is valid according to certain criteria.
     ///
-    /// A [`Signature`] is considered valid if its inner point `R` meets the
-    /// following conditions:
+    /// A [`SignatureVarGen`] is considered valid if its inner point `R` meets
+    /// the following conditions:
     /// 1. It is free of an $h$-torsion component and exists within the
     ///    $q$-order subgroup $\mathbb{G}_2$.
     /// 2. It is on the curve.
@@ -129,7 +124,7 @@ impl Signature {
     }
 }
 
-impl Serializable<64> for Signature {
+impl Serializable<64> for SignatureVarGen {
     type Error = BytesError;
 
     fn to_bytes(&self) -> [u8; Self::SIZE] {
@@ -148,15 +143,15 @@ impl Serializable<64> for Signature {
     }
 }
 
-// Create a challenge hash for the standard signature scheme.
+// Create a challenge hash for the signature scheme with a variable generator.
 #[allow(non_snake_case)]
 pub(crate) fn challenge_hash(
     R: &JubJubExtended,
-    pk: PublicKey,
+    pk: PublicKeyVarGen,
     message: BlsScalar,
 ) -> JubJubScalar {
     let R_coordinates = R.to_hash_inputs();
-    let pk_coordinates = pk.as_ref().to_hash_inputs();
+    let pk_coordinates = pk.public_key().to_hash_inputs();
 
     hash(&[
         R_coordinates[0],

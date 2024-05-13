@@ -91,10 +91,9 @@
 extern crate alloc;
 use alloc::vec;
 
+use dusk_bls12_381::BlsScalar;
+use dusk_jubjub::{JubJubExtended, JubJubScalar, GENERATOR_EXTENDED};
 use ff::Field;
-
-use dusk_jubjub::{JubJubExtended, GENERATOR_EXTENDED};
-use dusk_plonk::prelude::*;
 use rand_core::{CryptoRng, RngCore};
 
 use crate::{Error, PublicKey, SecretKey, Signature};

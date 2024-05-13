@@ -11,12 +11,8 @@ mod error;
 mod keys;
 mod signatures;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "zk")]
 pub mod gadgets;
-
-#[deprecated(note = "Please use DoubleSignature instead")]
-#[cfg(feature = "double")]
-pub type Proof = signatures::SignatureDouble;
 
 pub use error::Error;
 pub use keys::public::PublicKey;
@@ -24,16 +20,16 @@ pub use keys::secret::SecretKey;
 pub use signatures::Signature;
 
 #[cfg(feature = "double")]
-pub use keys::public::PublicKeyDouble;
+pub use keys::public::double::PublicKeyDouble;
 #[cfg(feature = "double")]
-pub use signatures::SignatureDouble;
+pub use signatures::double::SignatureDouble;
 
 #[cfg(feature = "var_generator")]
-pub use keys::public::PublicKeyVarGen;
+pub use keys::public::var_gen::PublicKeyVarGen;
 #[cfg(feature = "var_generator")]
-pub use keys::secret::SecretKeyVarGen;
+pub use keys::secret::var_gen::SecretKeyVarGen;
 #[cfg(feature = "var_generator")]
-pub use signatures::SignatureVarGen;
+pub use signatures::var_gen::SignatureVarGen;
 
 #[cfg(feature = "multisig")]
 #[allow(non_snake_case)]

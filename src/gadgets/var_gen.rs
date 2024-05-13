@@ -4,33 +4,18 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-//! # Schnorr Signature Gadgets
-//!
-//! This module provides Plonk gadgets for verification of Schnorr signatures.
-
-#[cfg(feature = "double")]
-mod double;
-#[cfg(feature = "double")]
-pub use double::verify_signature_double;
-
-#[cfg(feature = "var_generator")]
-mod var_gen;
-#[cfg(feature = "var_generator")]
-pub use var_gen::verify_signature_var_gen;
-
-use dusk_jubjub::GENERATOR_EXTENDED;
 use dusk_plonk::prelude::*;
 use dusk_poseidon::sponge;
 
-/// Verifies a single-key Schnorr signature [`Signature`]within a Plonk circuit
-/// without requiring the secret key as a witness.
+/// Verifies a Schnorr signature with variable generator [`SignatureVarGen`]
+/// within a Plonk circuit without requiring the secret key as a witness.
 ///
 /// The function performs Schnorr verification by calculating the challenge and
 /// confirming the signature equation.
 ///
 /// # Feature
 ///
-/// Only available with the "zk" feature enabled.
+/// Only available with the "var_generator" and "zk" features enabled.
 ///
 /// ### Parameters
 ///
@@ -38,6 +23,7 @@ use dusk_poseidon::sponge;
 /// - `u`: Witness for the random nonce used during signature generation.
 /// - `r`: Witness Point representing the nonce point `r = u*G`.
 /// - `pk`: Witness Point representing the public key `pk = sk*G`.
+/// - `gen`: Witness Point representing the variable generator `G`
 /// - `msg`: Witness for the message.
 ///
 /// ### Returns
@@ -50,12 +36,13 @@ use dusk_poseidon::sponge;
 /// This function will return an `Error` if the witness `u` is not a valid
 /// [`JubJubScalar`].
 ///
-/// [`Signature`]: [`crate::Signature`]
-pub fn verify_signature(
+/// [`SignatureVarGen`]: [`crate::SignatureVarGen`]
+pub fn verify_signature_var_gen(
     composer: &mut Composer,
     u: Witness,
     r: WitnessPoint,
     pk: WitnessPoint,
+    gen: WitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
     let r_x = *r.x();
@@ -67,7 +54,8 @@ pub fn verify_signature(
     let challenge = [r_x, r_y, pk_x, pk_y, msg];
     let challenge_hash = sponge::truncated::gadget(composer, &challenge);
 
-    let s_a = composer.component_mul_generator(u, GENERATOR_EXTENDED)?;
+    // TODO: check whether we need to append the generator as a constant
+    let s_a = composer.component_mul_point(u, gen);
     let s_b = composer.component_mul_point(challenge_hash, pk);
     let point = composer.component_add_point(s_a, s_b);
 

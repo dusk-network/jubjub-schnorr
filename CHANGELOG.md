@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove features: `"alloc", "std", "default"` [#21]
+
+### Added
+
+- Add `"zk"` feature [#21]
+
 ## [0.3.0] - 2024-04-24
 
 ### Changed
@@ -49,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#21]: https://github.com/dusk-network/jubjub-schnorr/issues/21
 [#14]: https://github.com/dusk-network/jubjub-schnorr/issues/14
 [#12]: https://github.com/dusk-network/jubjub-schnorr/issues/12
 [#9]: https://github.com/dusk-network/jubjub-schnorr/issues/9
