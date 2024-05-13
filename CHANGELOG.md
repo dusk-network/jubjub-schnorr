@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `"zk"` feature [#21]
 
+### Changed
+
+- Update to new `dusk-poseidon` API, v0.39 [#19]
+
 ## [0.3.0] - 2024-04-24
 
 ### Changed
@@ -60,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- ISSUES -->
 [#23]: https://github.com/dusk-network/jubjub-schnorr/issues/23
 [#21]: https://github.com/dusk-network/jubjub-schnorr/issues/21
+[#19]: https://github.com/dusk-network/jubjub-schnorr/issues/19
 [#14]: https://github.com/dusk-network/jubjub-schnorr/issues/14
 [#12]: https://github.com/dusk-network/jubjub-schnorr/issues/12
 [#9]: https://github.com/dusk-network/jubjub-schnorr/issues/9
