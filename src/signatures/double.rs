@@ -11,9 +11,6 @@ use dusk_poseidon::sponge::truncated::hash;
 
 use crate::PublicKey;
 
-#[cfg(feature = "zk")]
-use dusk_plonk::prelude::{Composer, Witness, WitnessPoint};
-
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -92,34 +89,6 @@ impl SignatureDouble {
         R_prime: JubJubExtended,
     ) -> Self {
         Self { u, R, R_prime }
-    }
-
-    /// Appends the `Signature` as a witness to the circuit composed by the
-    /// `Composer`.
-    ///
-    /// # Feature
-    ///
-    /// This function is only available when the "zk" feature is enabled.
-    ///
-    /// # Parameters
-    ///
-    /// * `composer`: Mutable reference to a `Composer`.
-    ///
-    /// # Returns
-    ///
-    /// A tuple comprising the `Witness` of scalar `u`, and `WitnessPoint`s of
-    /// `R` and `R'`.
-    #[cfg(feature = "zk")]
-    pub fn append(
-        &self,
-        composer: &mut Composer,
-    ) -> (Witness, WitnessPoint, WitnessPoint) {
-        // TODO: check whether the signature should be public
-        let u = composer.append_witness(self.u);
-        let r = composer.append_point(self.R());
-        let r_p = composer.append_point(self.R_prime());
-
-        (u, r, r_p)
     }
 
     /// Returns true if the inner point is valid according to certain criteria.

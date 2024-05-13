@@ -62,7 +62,9 @@ impl SigDoubleCircuit {
 
 impl Circuit for SigDoubleCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
-        let (u, r, r_p) = self.signature.append(composer);
+        let u = composer.append_witness(*self.signature.u());
+        let r = composer.append_point(self.signature.R());
+        let r_p = composer.append_point(self.signature.R_prime());
 
         let pk = composer.append_point(self.pk.pk());
         let pk_p = composer.append_point(self.pk.pk_prime());

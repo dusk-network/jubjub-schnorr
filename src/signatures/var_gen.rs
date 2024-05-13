@@ -14,9 +14,6 @@ use crate::PublicKeyVarGen;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
-#[cfg(feature = "zk")]
-use dusk_plonk::prelude::{Composer, Witness, WitnessPoint};
-
 /// An Schnorr SignatureVarGen, produced by signing a message with a
 /// [`SecretKeyVarGen`].
 ///
@@ -82,30 +79,6 @@ impl SignatureVarGen {
     #[allow(non_snake_case)]
     pub(crate) fn new(u: JubJubScalar, R: JubJubExtended) -> Self {
         Self { u, R }
-    }
-
-    /// Appends the single key as a witness to the circuit composed by the
-    /// [`Composer`].
-    ///
-    /// # Feature
-    ///
-    /// Only available with the "zk" feature enabled.
-    ///
-    /// ## Parameters
-    ///
-    /// - `composer`: Mutable reference to the Plonk `Composer`.
-    ///
-    /// ## Returns
-    ///
-    /// Returns a tuple `(Witness, WitnessPoint)` containing converted `u` and
-    /// `R` fields.
-    #[cfg(feature = "zk")]
-    pub fn append(&self, composer: &mut Composer) -> (Witness, WitnessPoint) {
-        // TODO: check whether the signature should be public
-        let u = composer.append_witness(self.u);
-        let r = composer.append_point(self.R);
-
-        (u, r)
     }
 
     /// Returns true if the inner point is valid according to certain criteria.

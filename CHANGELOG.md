@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Remove features: `"alloc", "std", "default"` [#21]
+- Remove `append` method in all signature variants [#23]
 
 ### Added
 
@@ -57,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#23]: https://github.com/dusk-network/jubjub-schnorr/issues/23
 [#21]: https://github.com/dusk-network/jubjub-schnorr/issues/21
 [#14]: https://github.com/dusk-network/jubjub-schnorr/issues/14
 [#12]: https://github.com/dusk-network/jubjub-schnorr/issues/12

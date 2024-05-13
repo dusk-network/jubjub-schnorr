@@ -72,7 +72,8 @@ impl SignatureCircuit {
 
 impl Circuit for SignatureCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
-        let (u, r) = self.signature.append(composer);
+        let u = composer.append_witness(*self.signature.u());
+        let r = composer.append_point(self.signature.R());
 
         let pk = composer.append_point(self.pk.as_ref());
         let msg = composer.append_witness(self.message);
@@ -159,7 +160,9 @@ impl SignatureDoubleCircuit {
 #[cfg(feature = "double")]
 impl Circuit for SignatureDoubleCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
-        let (u, r, r_p) = self.signature.append(composer);
+        let u = composer.append_witness(*self.signature.u());
+        let r = composer.append_point(self.signature.R());
+        let r_p = composer.append_point(self.signature.R_prime());
 
         let pk = composer.append_point(self.pk_double.pk());
         let pk_p = composer.append_point(self.pk_double.pk_prime());
@@ -250,7 +253,8 @@ impl SignatureVarGenCircuit {
 #[cfg(feature = "var_generator")]
 impl Circuit for SignatureVarGenCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
-        let (u, r) = self.signature.append(composer);
+        let u = composer.append_witness(*self.signature.u());
+        let r = composer.append_point(self.signature.R());
 
         let pk_var_gen = composer.append_point(self.pk_var_gen.public_key());
         let generator = composer.append_point(self.pk_var_gen.generator());
