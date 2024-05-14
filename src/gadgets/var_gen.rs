@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::*;
-use dusk_poseidon::sponge;
+use dusk_poseidon::{Domain, HashGadget};
 
 /// Verifies a Schnorr signature with variable generator [`SignatureVarGen`]
 /// within a Plonk circuit without requiring the secret key as a witness.
@@ -52,7 +52,8 @@ pub fn verify_signature_var_gen(
     let pk_y = *pk.y();
 
     let challenge = [r_x, r_y, pk_x, pk_y, msg];
-    let challenge_hash = sponge::truncated::gadget(composer, &challenge);
+    let challenge_hash =
+        HashGadget::digest_truncated(composer, Domain::Other, &challenge)[0];
 
     // TODO: check whether we need to append the generator as a constant
     let s_a = composer.component_mul_point(u, gen);

@@ -203,7 +203,7 @@ fn multisig_common(
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
 ) -> (JubJubScalar, JubJubScalar, JubJubExtended) {
-    use dusk_poseidon::sponge::truncated::hash;
+    use dusk_poseidon::{Domain, Hash};
 
     // Sum all the public keys pk = pk_1 + pk_2 + ... + pk_n for `n` signers
     let mut pk = JubJubExtended::default();
@@ -231,7 +231,7 @@ fn multisig_common(
         preimage.push(S_coordinates[1]);
     }
 
-    let a = hash(&preimage);
+    let a = Hash::digest_truncated(Domain::Other, &preimage)[0];
 
     // Compute RSa = R_1 + (S_1 * a) + R_2 + (S_2 * a) + ... + R_n + (S_n *
     // a) for `n` signers
@@ -242,13 +242,16 @@ fn multisig_common(
 
     // Compute challenge c = H(RSa || pk || m);
     let RSa_coordinates = RSa.to_hash_inputs();
-    let c = hash(&[
-        RSa_coordinates[0],
-        RSa_coordinates[1],
-        pk_coordinates[0],
-        pk_coordinates[1],
-        *msg,
-    ]);
+    let c = Hash::digest_truncated(
+        Domain::Other,
+        &[
+            RSa_coordinates[0],
+            RSa_coordinates[1],
+            pk_coordinates[0],
+            pk_coordinates[1],
+            *msg,
+        ],
+    )[0];
 
     (a, c, RSa)
 }

@@ -6,7 +6,7 @@
 
 use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED};
 use dusk_plonk::prelude::*;
-use dusk_poseidon::sponge;
+use dusk_poseidon::{Domain, HashGadget};
 
 /// Verifies a [`SignatureDouble`] within a Plonk circuit without requiring
 /// the secret key as a witness.
@@ -55,7 +55,8 @@ pub fn verify_signature_double(
     let pk_y = *pk.y();
 
     let challenge = [r_x, r_y, r_p_x, r_p_y, pk_x, pk_y, msg];
-    let challenge_hash = sponge::truncated::gadget(composer, &challenge);
+    let challenge_hash =
+        HashGadget::digest_truncated(composer, Domain::Other, &challenge)[0];
 
     let s_a = composer.component_mul_generator(u, GENERATOR_EXTENDED)?;
     let s_b = composer.component_mul_point(challenge_hash, pk);

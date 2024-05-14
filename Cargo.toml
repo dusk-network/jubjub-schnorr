@@ -17,7 +17,7 @@ license = "MPL-2.0"
 [dependencies]
 rand_core = { version = "0.6", default-features = false }
 dusk-bytes = "0.1"
-dusk-poseidon = { version ="0.33", default-features = false }
+dusk-poseidon = "0.39"
 dusk-bls12_381 = { version = "0.13", default-features = false }
 dusk-jubjub = { version = "0.14", default-features = false, features = ["zeroize"] }
 ff = { version = "0.13", default-features = false }
@@ -59,7 +59,7 @@ var_generator = []
 multisig = []
 zk = [
     "dusk-plonk",
-    "dusk-poseidon/alloc",
+    "dusk-poseidon/zk",
 ]
 rkyv-impl = [
     "dusk-jubjub/rkyv-impl",

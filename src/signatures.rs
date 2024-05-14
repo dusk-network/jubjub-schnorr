@@ -19,7 +19,7 @@ pub(crate) mod var_gen;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
-use dusk_poseidon::sponge::truncated::hash;
+use dusk_poseidon::{Domain, Hash};
 
 use crate::PublicKey;
 
@@ -131,11 +131,14 @@ pub(crate) fn challenge_hash(
     let R_coordinates = R.to_hash_inputs();
     let pk_coordinates = pk.as_ref().to_hash_inputs();
 
-    hash(&[
-        R_coordinates[0],
-        R_coordinates[1],
-        pk_coordinates[0],
-        pk_coordinates[1],
-        message,
-    ])
+    Hash::digest_truncated(
+        Domain::Other,
+        &[
+            R_coordinates[0],
+            R_coordinates[1],
+            pk_coordinates[0],
+            pk_coordinates[1],
+            message,
+        ],
+    )[0]
 }
