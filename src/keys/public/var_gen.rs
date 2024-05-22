@@ -19,10 +19,6 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// signatures created with its corresponding variable generator secret key
 /// without revealing the secret key itself.
 ///
-/// # Feature
-///
-/// Only available with the "var_generator" feature enabled.
-///
 /// ## Examples
 ///
 /// Generate a [`PublicKeyVarGen`] from a [`SecretKeyVarGen`]:

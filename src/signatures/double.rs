@@ -16,10 +16,6 @@ use rkyv::{Archive, Deserialize, Serialize};
 
 /// Structure representing a Schnorr signature with a double-key mechanism.
 ///
-/// # Feature
-///
-/// Only available with the "double" feature enabled.
-///
 /// ## Fields
 ///
 /// - `u`: A [`JubJubScalar`] scalar value representing part of the Schnorr

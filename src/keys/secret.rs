@@ -20,11 +20,8 @@ use zeroize::Zeroize;
 
 use crate::{PublicKey, Signature};
 
-#[cfg(feature = "var_generator")]
-pub(crate) mod var_gen;
-
-#[cfg(feature = "double")]
 mod double;
+pub(crate) mod var_gen;
 
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};

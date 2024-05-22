@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![cfg(features = "alloc")]
+
 //! # Multisignature Module
 //!
 //! Implementation of the `SpeedyMuSig` Schnorr-based
@@ -17,7 +19,7 @@
 //!
 //! ## Feature
 //!
-//! Only available with the "multisig" feature enabled.
+//! Only available with the "alloc" feature enabled.
 //!
 //! ## Example
 //!

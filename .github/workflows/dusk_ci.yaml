@@ -8,7 +8,7 @@ jobs:
     uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
     with:
       clippy_default: false
-      clippy_args: --features=rkyv/size_32,double,var_generator,multisig,zk
+      clippy_args: --features=rkyv/size_32,zk
 
   dusk_analyzer:
     name: Dusk Analyzer
@@ -20,34 +20,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - run: cargo bench --no-run --features=double,var_generator,zk
+      - run: cargo bench --no-run --features=zk
 
-  test_nightly:
+  test_all_nightly:
     name: Nightly tests
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=double,var_generator,multisig,zk
-
-  test_nightly_double_compiles:
-    name: Nightly feature=double tests compile
-    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
-    with:
-      test_flags: --features=double --no-run
-
-  test_nightly_var_generator_compiles:
-    name: Nightly feature=var_generator tests compile
-    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
-    with:
-      test_flags: --features=var_generator --no-run
+      test_flags: --features=zk,alloc
 
   test_nightly_multisig_compiles:
-    name: Nightly feature=multisig tests compile
+    name: Nightly multisig tests compile
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=multisig --no-run
-
-  test_nightly_gadgets_compile:
-    name: Nightly feature=zk tests compile
-    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
-    with:
-      test_flags: --features=double,var_generator,zk --no-run
+      test_flags: --features=alloc --no-run

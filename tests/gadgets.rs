@@ -5,18 +5,14 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::Error as PlonkError;
+use dusk_plonk::prelude::*;
 use ff::Field;
-use jubjub_schnorr::{gadgets, PublicKey, SecretKey, Signature};
+use jubjub_schnorr::{
+    gadgets, PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey,
+    SecretKeyVarGen, Signature, SignatureDouble, SignatureVarGen,
+};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-
-use dusk_plonk::prelude::*;
-
-#[cfg(feature = "double")]
-use jubjub_schnorr::{PublicKeyDouble, SignatureDouble};
-
-#[cfg(feature = "var_generator")]
-use jubjub_schnorr::{PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen};
 
 lazy_static::lazy_static! {
     pub static ref PP: PublicParameters = {
@@ -118,14 +114,12 @@ fn verify_signature() {
 // Test verify_signature_double
 //
 #[derive(Debug, Default)]
-#[cfg(feature = "double")]
 struct SignatureDoubleCircuit {
     signature: SignatureDouble,
     pk_double: PublicKeyDouble,
     message: BlsScalar,
 }
 
-#[cfg(feature = "double")]
 impl SignatureDoubleCircuit {
     pub fn valid_random(rng: &mut StdRng) -> Self {
         let sk = SecretKey::random(rng);
@@ -157,7 +151,6 @@ impl SignatureDoubleCircuit {
     }
 }
 
-#[cfg(feature = "double")]
 impl Circuit for SignatureDoubleCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
         let u = composer.append_witness(*self.signature.u());
@@ -176,7 +169,6 @@ impl Circuit for SignatureDoubleCircuit {
 }
 
 #[test]
-#[cfg(feature = "double")]
 fn verify_signature_double() {
     let mut rng = StdRng::seed_from_u64(0xfeeb);
 
@@ -211,14 +203,12 @@ fn verify_signature_double() {
 // Test verify_signature_var_gen
 //
 #[derive(Debug, Default)]
-#[cfg(feature = "var_generator")]
 struct SignatureVarGenCircuit {
     signature: SignatureVarGen,
     pk_var_gen: PublicKeyVarGen,
     message: BlsScalar,
 }
 
-#[cfg(feature = "var_generator")]
 impl SignatureVarGenCircuit {
     pub fn valid_random(rng: &mut StdRng) -> Self {
         let sk = SecretKeyVarGen::random(rng);
@@ -250,7 +240,6 @@ impl SignatureVarGenCircuit {
     }
 }
 
-#[cfg(feature = "var_generator")]
 impl Circuit for SignatureVarGenCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
         let u = composer.append_witness(*self.signature.u());
@@ -269,7 +258,6 @@ impl Circuit for SignatureVarGenCircuit {
 }
 
 #[test]
-#[cfg(feature = "var_generator")]
 fn verify_signature_var_gen() {
     let mut rng = StdRng::seed_from_u64(0xfeeb);
 

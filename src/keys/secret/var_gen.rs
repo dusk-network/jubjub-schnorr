@@ -22,10 +22,6 @@ impl SecretKey {
     /// Create a [`SecretKeyVarGen`], a `SecretKey` with a generator
     /// other than [`GENERATOR_EXTENDED`].
     ///
-    /// # Feature
-    ///
-    /// Only available with the "var_generator" feature enabled.
-    ///
     /// # Parameters
     ///
     /// * `generator`: A `JubJubExtended` point that will replace
@@ -45,10 +41,6 @@ impl SecretKey {
 /// Structure representing a [`SecretKeyVarGen`], represented as a private
 /// scalar in the JubJub scalar field, with a variable generator,
 /// represented as a point on the JubJub curve.
-///
-/// # Feature
-///
-/// Only available with the "var_generator" feature enabled.
 ///
 /// ## Examples
 ///

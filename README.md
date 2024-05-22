@@ -123,7 +123,7 @@ cargo add jubjub-schnorr
 A basic example demonstrating how to generate and verify a Schnorr signature:
 ```rust
 use dusk_bls12_381::BlsScalar;
-use jubjub_schnorr::{SecretKey, PublicKey};
+use jubjub_schnorr::{SecretKey};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use ff::Field;
@@ -137,27 +137,28 @@ fn main() {
     let sk = SecretKey::random(&mut rng);
 
     // Standard Schnorr signature scheme:
+    use jubjub_schnorr::PublicKey;
+
     let pk = PublicKey::from(&sk);
     let signature = sk.sign(&mut rng, message);
     assert!(pk.verify(&signature, message).is_ok(), "The signature should be valid.");
 
     // Double Dusk-Schnorr signature scheme:
-    #[cfg(features = "double")]
-    {
-        let pk = jubjub_schnorr::PublicKeyDouble::from(&sk);
-        let signature = sk.sign_double(&mut rng, message);
-        assert!(pk.verify(&signature, message).is_ok(), "The signature should be valid.");
-    }
+    use jubjub_schnorr::PublicKeyDouble;
+
+    let pk = PublicKeyDouble::from(&sk);
+    let signature = sk.sign_double(&mut rng, message);
+    assert!(pk.verify(&signature, message).is_ok(), "The signature should be valid.");
 
     // Dusk-Schnorr signature scheme with variable generator:
-    #[cfg(features = "var_generator")]
-    {
-        let generator = dusk_jubjub::GENERATOR_EXTENDED * JubJubScalar::from(42u64);
-        let sk = sk.with_variable_generator(generator);
-        let pk = jubjub_schnorr::PublicKeyVarGen::from(&sk);
-        let signature = sk.sign(&mut rng, message);
-        assert!(pk.verify(&signature, message).is_ok(), "The signature should be valid.");
-    }
+    use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
+    use jubjub_schnorr::PublicKeyVarGen;
+
+    let generator = GENERATOR_EXTENDED * JubJubScalar::from(42u64);
+    let sk = sk.with_variable_generator(generator);
+    let pk = PublicKeyVarGen::from(&sk);
+    let signature = sk.sign(&mut rng, message);
+    assert!(pk.verify(&signature, message).is_ok(), "The signature should be valid.");
 }
 ```
 

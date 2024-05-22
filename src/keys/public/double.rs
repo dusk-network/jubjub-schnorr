@@ -27,10 +27,6 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// uses then the single-key variant. For example, it is used in Phoenix for
 /// proof delegation while preventing the leakage of secret keys.
 ///
-/// # Feature
-///
-/// Only available with the "double" feature enabled.
-///
 /// ## Fields
 ///
 /// - `(pk, pk')`: two [`PublicKey`], where `pk` is generated with [`G`] and

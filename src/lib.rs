@@ -19,18 +19,12 @@ pub use keys::public::PublicKey;
 pub use keys::secret::SecretKey;
 pub use signatures::Signature;
 
-#[cfg(feature = "double")]
 pub use keys::public::double::PublicKeyDouble;
-#[cfg(feature = "double")]
 pub use signatures::double::SignatureDouble;
 
-#[cfg(feature = "var_generator")]
 pub use keys::public::var_gen::PublicKeyVarGen;
-#[cfg(feature = "var_generator")]
 pub use keys::secret::var_gen::SecretKeyVarGen;
-#[cfg(feature = "var_generator")]
 pub use signatures::var_gen::SignatureVarGen;
 
-#[cfg(feature = "multisig")]
 #[allow(non_snake_case)]
 pub mod multisig;
