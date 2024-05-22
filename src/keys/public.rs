@@ -19,10 +19,7 @@ use dusk_jubjub::{JubJubAffine, JubJubExtended, GENERATOR_EXTENDED};
 
 use crate::{Error, SecretKey, Signature};
 
-#[cfg(feature = "double")]
 pub(crate) mod double;
-
-#[cfg(feature = "var_generator")]
 pub(crate) mod var_gen;
 
 #[cfg(feature = "rkyv-impl")]

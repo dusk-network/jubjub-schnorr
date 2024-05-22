@@ -19,10 +19,6 @@ use rkyv::{Archive, Deserialize, Serialize};
 ///
 /// The `SignatureVarGen` struct encapsulates variables of the Schnorr scheme.
 ///
-/// # Feature
-///
-/// Only available with the "var_generator" feature enabled.
-///
 /// ## Fields
 ///
 /// - `u`: A [`JubJubScalar`] scalar representing the Schnorr signature.

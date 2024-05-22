@@ -10,10 +10,7 @@
 //! Schnorr-based double signature and a Schnorr-based signature with variable
 //! generator.
 
-#[cfg(feature = "double")]
 pub(crate) mod double;
-
-#[cfg(feature = "var_generator")]
 pub(crate) mod var_gen;
 
 use dusk_bls12_381::BlsScalar;

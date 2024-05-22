@@ -41,7 +41,6 @@ required-features = ["zk"]
 name = "signature_double"
 harness = false
 required-features = [
-    "double",
     "zk",
 ]
 
@@ -49,14 +48,11 @@ required-features = [
 name = "signature_var_generator"
 harness = false
 required-features = [
-    "var_generator",
     "zk",
 ]
 
 [features]
-double = []
-var_generator = []
-multisig = []
+alloc = []
 zk = [
     "dusk-plonk",
     "dusk-poseidon/zk",
@@ -68,24 +64,9 @@ rkyv-impl = [
 ]
 
 [[test]]
-name = "double"
-path = "tests/schnorr_double.rs"
-required-features = ["double"]
-
-[[test]]
-name = "var_generator"
-path = "tests/schnorr_var_generator.rs"
-required-features = ["var_generator"]
-
-[[test]]
 name = "gadgets"
 path = "tests/gadgets.rs"
 required-features = ["zk"]
-
-[[test]]
-name = "multisig"
-path = "tests/schnorr_multisig.rs"
-required-features = ["multisig"]
 
 # we use the approach from https://github.com/victe/rust-latex-doc-minimal-example
 # to render latex on docs.rs

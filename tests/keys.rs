@@ -5,14 +5,10 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
-use jubjub_schnorr::{PublicKey, SecretKey};
+use jubjub_schnorr::{
+    PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey, SecretKeyVarGen,
+};
 use rand_core::OsRng;
-
-#[cfg(feature = "double")]
-use jubjub_schnorr::PublicKeyDouble;
-
-#[cfg(feature = "var_generator")]
-use jubjub_schnorr::{PublicKeyVarGen, SecretKeyVarGen};
 
 #[test]
 #[allow(clippy::eq_op)]
@@ -70,7 +66,6 @@ fn test_zeroize() {
 }
 
 #[test]
-#[cfg(feature = "double")]
 fn partial_eq_pk_double() {
     let sk1 = SecretKey::random(&mut OsRng);
     let sk2 = SecretKey::random(&mut OsRng);
@@ -85,7 +80,6 @@ fn partial_eq_pk_double() {
 }
 
 #[test]
-#[cfg(feature = "var_generator")]
 fn partial_eq_pk_var_gen() {
     let sk1 = SecretKeyVarGen::random(&mut OsRng);
     let sk2 = SecretKeyVarGen::random(&mut OsRng);

@@ -5,12 +5,11 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_bls12_381::BlsScalar;
-use dusk_jubjub::{JubJubScalar, GENERATOR_EXTENDED};
+use dusk_jubjub::{JubJubScalar, GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
 use crate::{PublicKey, SecretKey, SignatureDouble};
-use dusk_jubjub::GENERATOR_NUMS_EXTENDED;
 
 impl SecretKey {
     /// Constructs a new `Signature` instance by signing a given message with
@@ -19,10 +18,6 @@ impl SecretKey {
     /// Utilizes a secure random number generator to create a unique random
     /// scalar, and subsequently computes public key points `(R, R')` and a
     /// scalar signature `u`.
-    ///
-    /// # Feature
-    ///
-    /// Only available with the "double" feature enabled.
     ///
     /// # Parameters
     ///
