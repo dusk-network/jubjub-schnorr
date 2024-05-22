@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2024-05-22
+
 ### Removed
 
 - Remove features: `"alloc", "std", "default"` [#21]
 - Remove features: `"double", "var_generator", "multisig"` [#25]
-- Re-introduce `"alloc"` feature for multisig [#25]
 - Remove `append` method in all signature variants [#23]
 
 ### Added
@@ -75,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#2]: https://github.com/dusk-network/jubjub-schnorr/issues/2
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.2.0...v0.2.1
