@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2024-08-14
+
+### Changed
+
+- Update to dusk-plonk v0.20.0
+- Update to dusk-poseidon v0.40.0
+
 ## [0.4.0] - 2024-05-22
 
 ### Removed
@@ -76,7 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#2]: https://github.com/dusk-network/jubjub-schnorr/issues/2
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.2.1...v0.2.2
