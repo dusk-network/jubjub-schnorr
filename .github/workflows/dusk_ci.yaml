@@ -8,7 +8,7 @@ jobs:
     uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
     with:
       clippy_default: false
-      clippy_args: --features=rkyv/size_32,zk
+      clippy_args: --features=rkyv/size_32,zk,serde
 
   dusk_analyzer:
     name: Dusk Analyzer
@@ -26,7 +26,7 @@ jobs:
     name: Nightly tests
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=zk,alloc
+      test_flags: --features=zk,alloc,serde
 
   test_nightly_multisig_compiles:
     name: Nightly multisig tests compile
