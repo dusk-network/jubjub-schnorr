@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg(features = "alloc")]
+#![cfg(feature = "alloc")]
 
 //! # Multisignature Module
 //!

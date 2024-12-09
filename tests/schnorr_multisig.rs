@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-#![cfg(features = "alloc")]
+#![cfg(feature = "alloc")]
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
