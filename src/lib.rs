@@ -14,6 +14,9 @@ mod signatures;
 #[cfg(feature = "zk")]
 pub mod gadgets;
 
+#[cfg(feature = "serde")]
+mod serde_support;
+
 pub use error::Error;
 pub use keys::public::PublicKey;
 pub use keys::secret::SecretKey;
