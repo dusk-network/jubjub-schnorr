@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add serde `Serialize` and `Deserialize` implementations for `PublicKey`, `SecretKey`, `Signature`,
+`PublicKeyDouble`, `SignatureDouble`, `PublicKeyVarGen`, `SecretKeyVarGen` and `SignatureVarGen` [#29]
+- Add `serde`, `bs58` and `serde_json` optional dependencies [#29]
+- Add `serde` feature [#29]
+
 ## [0.5.0] - 2024-08-14
 
 ### Changed
@@ -72,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#29]: https://github.com/dusk-network/jubjub-schnorr/issues/29
 [#25]: https://github.com/dusk-network/jubjub-schnorr/issues/25
 [#23]: https://github.com/dusk-network/jubjub-schnorr/issues/23
 [#21]: https://github.com/dusk-network/jubjub-schnorr/issues/21
