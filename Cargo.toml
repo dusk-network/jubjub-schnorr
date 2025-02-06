@@ -17,14 +17,14 @@ license = "MPL-2.0"
 [dependencies]
 rand_core = { version = "0.6", default-features = false }
 dusk-bytes = "0.1"
-dusk-poseidon = "0.40"
-dusk-bls12_381 = { version = "0.13", default-features = false }
-dusk-jubjub = { version = "0.14", default-features = false, features = ["zeroize"] }
+dusk-poseidon = "0.41"
+dusk-bls12_381 = { version = "0.14", default-features = false }
+dusk-jubjub = { version = "0.15", default-features = false, features = ["zeroize"] }
 ff = { version = "0.13", default-features = false }
 zeroize = { version = "1", default-features = false, features = ["derive"] }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
-dusk-plonk = { version = "0.20", default-features = false, features = ["alloc"], optional = true }
+dusk-plonk = { version = "0.21", default-features = false, features = ["alloc"], optional = true }
 serde = { version = "1.0", optional = true }
 bs58 = { version = "0.4" , optional = true }
 serde_json = { version = "1.0", optional = true }
