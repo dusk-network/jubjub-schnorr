@@ -14,89 +14,136 @@ use jubjub_schnorr::{
 };
 use rand::rngs::StdRng;
 use rand::SeedableRng;
+use serde::Serialize;
+
+fn assert_canonical_json<T>(
+    input: &T,
+    expected: &str,
+) -> Result<String, Box<dyn std::error::Error>>
+where
+    T: ?Sized + Serialize,
+{
+    let serialized = serde_json::to_string(input)?;
+    let input_canonical: serde_json::Value = serialized.parse()?;
+    let expected_canonical: serde_json::Value = expected.parse()?;
+    assert_eq!(input_canonical, expected_canonical);
+    Ok(serialized)
+}
 
 #[test]
-fn public_key() {
+fn serde_public_key() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(2321u64);
     let pk = PublicKey::from(&SecretKey::random(&mut rng));
-    let ser = serde_json::to_string(&pk).unwrap();
-    let deser = serde_json::from_str(&ser).unwrap();
+    let ser = assert_canonical_json(
+        &pk,
+        "\"DpZLY4DYeQfPL1buDu8mD6ksNms6Egs98dSSFnFaSbRy\"",
+    )?;
+    let deser = serde_json::from_str(&ser)?;
     assert_eq!(pk, deser);
+    Ok(())
 }
 
 #[test]
-fn secret_key() {
+fn serde_secret_key() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(2321u64);
     let sk = SecretKey::random(&mut rng);
-    let ser = serde_json::to_string(&sk).unwrap();
-    let deser = serde_json::from_str(&ser).unwrap();
+    let ser = assert_canonical_json(
+        &sk,
+        "\"kTCLvwPCUa18aowCBXYNLuPVjHoonZYzyJGaSn6xsrP\"",
+    )?;
+    let deser = serde_json::from_str(&ser)?;
     assert_eq!(sk, deser);
+    Ok(())
 }
 
 #[test]
-fn signature() {
+fn serde_signature() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(2321u64);
     let sk = SecretKey::random(&mut rng);
     let msg = BlsScalar::random(&mut rng);
     let sig = sk.sign(&mut rng, msg);
-    let ser = serde_json::to_string(&sig).unwrap();
-    let deser = serde_json::from_str(&ser).unwrap();
+    let ser = assert_canonical_json(
+        &sig,
+        "\"3RaYppgCj8gGPTqx7R2RCvL8L8VwtHEXNuMrmGYiyfHBYgsLTPfc96DoyD6jhD8PhN4aRycx5jL6kNcCL2ieVEct\""
+    )?;
+    let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);
+    Ok(())
 }
 
 #[test]
-fn public_key_double() {
+fn serde_public_key_double() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(2321u64);
     let sk = SecretKey::random(&mut rng);
     let pk = PublicKeyDouble::from(&sk);
-    let ser = serde_json::to_string(&pk).unwrap();
-    let deser = serde_json::from_str(&ser).unwrap();
+    let ser = assert_canonical_json(
+        &pk,
+        "\"4otCV6kFoJ6PXxwcFM1z9AFyiqwGHp3VPj3rUBCD25TcyNJWtMqSfNndztYMjG6RodvSpTvnZQjpMEvD1dCodKZd\""
+    )?;
+    let deser = serde_json::from_str(&ser)?;
     assert_eq!(pk, deser);
+    Ok(())
 }
 
 #[test]
-fn signature_double() {
+fn serde_signature_double() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(2321u64);
     let sk = SecretKey::random(&mut rng);
     let msg = BlsScalar::random(&mut rng);
     let sig = sk.sign_double(&mut rng, msg);
-    let ser = serde_json::to_string(&sig).unwrap();
-    let deser = serde_json::from_str(&ser).unwrap();
+    let ser = assert_canonical_json(
+        &sig,
+        "\"2VLaiWNVxxsCgBKu7qSXY6PYN12Xmrqg2ASGhjs7TMgx8fQg7esQXhqomzKK8gcDoMEUCsheFVDjRpEpmAwCbSLoRnZ9yJWDPwude6Zi1RLEFDKsahXpBtdQkrnX6YYxfBhy\""
+    )?;
+    let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);
+    Ok(())
 }
 
 #[test]
-fn public_key_var_gen() {
+fn serde_public_key_var_gen() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(2321u64);
     let pk = PublicKeyVarGen::from(&SecretKeyVarGen::random(&mut rng));
-    let ser = serde_json::to_string(&pk).unwrap();
-    let deser = serde_json::from_str(&ser).unwrap();
+    let ser = assert_canonical_json(
+        &pk,
+        "\"CNFKfgP331GhG5uVaMftF2Dgm9TWUoF9tqj7VJwf66QTXiMX73u8jhBiHHEu9wckBrrwR8X9H5Yt4NJ9GGEzWR3\""
+    )?;
+    let deser = serde_json::from_str(&ser)?;
     assert_eq!(pk, deser);
+    Ok(())
 }
 
 #[test]
-fn secret_key_var_gen() {
+fn serde_secret_key_var_gen() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(2321u64);
     let sk = SecretKeyVarGen::random(&mut rng);
-    let ser = serde_json::to_string(&sk).unwrap();
-    let deser = serde_json::from_str(&ser).unwrap();
+    let ser = assert_canonical_json(
+        &sk,
+        "\"DuexcrF7ezofjV6RPDabrqKgEtjzWURdaLSp1vdig84eUbZw4Ud7y9qCnmiZBDMKVoik12DXo1YBeHG3C7CHZYh\""
+    )?;
+    let deser = serde_json::from_str(&ser)?;
     assert_eq!(sk, deser);
+    Ok(())
 }
 
 #[test]
-fn signature_var_gen() {
+fn serde_signature_var_gen() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = StdRng::seed_from_u64(2321u64);
     let sk = SecretKeyVarGen::random(&mut rng);
     let msg = BlsScalar::random(&mut rng);
     let sig = sk.sign(&mut rng, msg);
-    let ser = serde_json::to_string(&sig).unwrap();
-    let deser = serde_json::from_str(&ser).unwrap();
+    let ser = assert_canonical_json(
+        &sig,
+        "\"2stTAEp4aUw3XwWU8W5bC4RSNnseTTYdoLo3xPyentVBLgtzTyH4jSP5ehUJQdvoz5fzHKPEiVV3hiVWnYMwsLMC\""
+    )?;
+    let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);
+    Ok(())
 }
 
 #[test]
-fn wrong_encoded() {
-    let wrong_encoded = "wrong-encoded";
+fn serde_wrong_encoded() {
+    let wrong_encoded = "\"wrong-encoded\"";
     let public_key: Result<PublicKey, _> = serde_json::from_str(&wrong_encoded);
     assert!(public_key.is_err());
 
@@ -128,7 +175,7 @@ fn wrong_encoded() {
 }
 
 #[test]
-fn too_long_encoded() {
+fn serde_too_long_encoded() {
     let length_33_enc = "\"yaujE5CNg7SRYuf3Vw7G8QQdM7267QxJtfqGUEjLbxyCC\"";
     let length_65_enc = "\"Hovyh2MvKLSnTfv2aKMMD1s7MgzWVCdzKJbbLwzU3kgVmo2JugxpGPASJWVQVXcxUqxtxVrQ63myzLRr1ko6oJvyv\"";
     let length_97_enc = "\"7a5RpCdtr1aaXvaR3AofnEnVRh7kpzyqE8eYJpCBVLKLLpXVeN9UrXGRTZyq2upTVaJT5QnPQwZCGXW1oxrEAzrPvQ4vbWFwiHMJijZMzrPsTjQJFju1H4shrajuqUG4fYFpC\"";
@@ -164,7 +211,7 @@ fn too_long_encoded() {
 }
 
 #[test]
-fn too_short_encoded() {
+fn serde_too_short_encoded() {
     let length_31_enc = "\"3uTp29S3e2HQBekFYvVwsmoeEzk4uVWwQUjvJPwWKwU\"";
     let length_63_enc = "\"YrHj6pQ3kRkpELFJK8a8ESdYyXaH9fQeb4pXRNEb8mSxDCrin1bF4uHz9BN13kN15mmH5fxXXSAusfLLGLrjCF\"";
     let length_95_enc = "\"LZXkPWnz5xKxYnyDRZyJvL9vF44oQynzozqRBcpgWA3yZicbaxNeKKJrAMv3eXBbyEvk24mgz9Kg9tck5yEW6k16chN4hDWYUr5gDb9PJJ3YmUqcjG8yPaAuz3cNCE8dHv\"";
