@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `dusk-bls12_381` to v0.14
 - Update `dusk-jubjub` to v0.15
 - Update `dusk-plonk` to 0.21
+- Serde feature no longer has any std dependence [#3596]
 
 ## [0.5.1] - 2024-12-17
 
@@ -88,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#29]: https://github.com/dusk-network/jubjub-schnorr/issues/29
 [#25]: https://github.com/dusk-network/jubjub-schnorr/issues/25
 [#23]: https://github.com/dusk-network/jubjub-schnorr/issues/23
