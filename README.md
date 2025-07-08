@@ -1,5 +1,5 @@
 # jubjub-schnorr
-![Build Status](https://github.com/dusk-network/jubjub-schnorr/workflows/Continuous%20integration/badge.svg)
+[![Build Status](https://github.com/dusk-network/jubjub-schnorr/workflows/Continuous%20integration/badge.svg)](https://github.com/dusk-network/jubjub-schnorr/actions/workflows/dusk_ci.yaml)
 [![Repository](https://img.shields.io/badge/github-schnorr-blueviolet?logo=github)](https://github.com/dusk-network/jubjub-schnorr)
 [![Documentation](https://img.shields.io/badge/docs-schnorr-blue?logo=rust)](https://docs.rs/jubjub-schnorr/)
 
