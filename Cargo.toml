@@ -25,15 +25,15 @@ zeroize = { version = "1", default-features = false, features = ["derive"] }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
 dusk-plonk = { version = "0.21", default-features = false, features = ["alloc"], optional = true }
-serde = { version = "1.0", optional = true }
-bs58 = { version = "0.4" , optional = true }
-serde_json = { version = "1.0", optional = true }
+serde = { version = "1.0", default-features = false, optional = true }
+bs58 = { version = "0.4" , default-features = false, optional = true }
 
 [dev-dependencies]
 rkyv = { version = "0.7", default-features = false, features = ["size_32"] }
 criterion = "0.3"
 rand = "0.8"
 lazy_static = "1.4"
+serde_json = "1.0"
 
 [[bench]]
 name = "signature"
@@ -66,9 +66,8 @@ rkyv-impl = [
     "bytecheck",
 ]
 serde = [
-    "dep:serde",
-    "bs58",
-    "serde_json"
+    "serde/alloc",
+    "bs58/alloc",
 ]
 
 [[test]]
