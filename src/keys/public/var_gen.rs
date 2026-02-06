@@ -59,8 +59,8 @@ impl Serializable<64> for PublicKeyVarGen {
         let mut buf = [0u8; 64];
         let pk: JubJubAffine = self.pk.into();
         let pk_bytes = pk.to_bytes();
-        let gen: JubJubAffine = self.generator.into();
-        let gen_bytes = gen.to_bytes();
+        let generator: JubJubAffine = self.generator.into();
+        let gen_bytes = generator.to_bytes();
         buf[..32].copy_from_slice(&pk_bytes);
         buf[32..].copy_from_slice(&gen_bytes);
         buf
