@@ -4,29 +4,37 @@ version = "0.6.0"
 edition = "2021"
 readme = "README.md"
 repository = "https://github.com/dusk-network/jubjub-schnorr"
-keywords = ["cryptography", "schnorr", "zk-snarks", "zero-knowledge", "signatures"]
-categories =["algorithms", "cryptography", "mathematics"]
-description = "A pure-Rust implementation of Schnorr signatures with a PLONK circuit module additionally"
-exclude = [
-    ".gitignore",
-    "Cargo.lock",
-    ".github/"
+keywords = [
+    "cryptography",
+    "schnorr",
+    "zk-snarks",
+    "zero-knowledge",
+    "signatures",
 ]
+categories = ["algorithms", "cryptography", "mathematics"]
+description = "A pure-Rust implementation of Schnorr signatures with a PLONK circuit module additionally"
+exclude = [".gitignore", "Cargo.lock", ".github/"]
+
 license = "MPL-2.0"
+rust-version = "1.85"
 
 [dependencies]
 rand_core = { version = "0.6", default-features = false }
 dusk-bytes = "0.1"
-dusk-poseidon = "0.41"
+dusk-poseidon = "0.42.0-rc.0"
 dusk-bls12_381 = { version = "0.14", default-features = false }
-dusk-jubjub = { version = "0.15", default-features = false, features = ["zeroize"] }
+dusk-jubjub = { version = "0.15", default-features = false, features = [
+    "zeroize",
+] }
 ff = { version = "0.13", default-features = false }
 zeroize = { version = "1", default-features = false, features = ["derive"] }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
-dusk-plonk = { version = "0.21", default-features = false, features = ["alloc"], optional = true }
+dusk-plonk = { version = "0.22.0-rc.0", default-features = false, features = [
+    "alloc",
+], optional = true }
 serde = { version = "1.0", default-features = false, optional = true }
-bs58 = { version = "0.4" , default-features = false, optional = true }
+bs58 = { version = "0.4", default-features = false, optional = true }
 
 [dev-dependencies]
 rkyv = { version = "0.7", default-features = false, features = ["size_32"] }
@@ -43,32 +51,18 @@ required-features = ["zk"]
 [[bench]]
 name = "signature_double"
 harness = false
-required-features = [
-    "zk",
-]
+required-features = ["zk"]
 
 [[bench]]
 name = "signature_var_generator"
 harness = false
-required-features = [
-    "zk",
-]
+required-features = ["zk"]
 
 [features]
 alloc = []
-zk = [
-    "dusk-plonk",
-    "dusk-poseidon/zk",
-]
-rkyv-impl = [
-    "dusk-jubjub/rkyv-impl",
-    "rkyv",
-    "bytecheck",
-]
-serde = [
-    "serde/alloc",
-    "bs58/alloc",
-]
+zk = ["dusk-plonk", "dusk-poseidon/zk"]
+rkyv-impl = ["dusk-jubjub/rkyv-impl", "rkyv", "bytecheck"]
+serde = ["serde/alloc", "bs58/alloc"]
 
 [[test]]
 name = "gadgets"
@@ -78,4 +72,4 @@ required-features = ["zk"]
 # we use the approach from https://github.com/victe/rust-latex-doc-minimal-example
 # to render latex on docs.rs
 [package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "./katex-header.html" ]
+rustdoc-args = ["--html-in-header", "./katex-header.html"]

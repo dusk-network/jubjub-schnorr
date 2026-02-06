@@ -22,14 +22,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench --no-run --features=zk
 
-  test_all_nightly:
-    name: Nightly tests
+  test_all:
+    name: Run Tests
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
       test_flags: --features=zk,alloc,serde
 
-  test_nightly_multisig_compiles:
-    name: Nightly multisig tests compile
+  test_multisig_compiles:
+    name: Multisig tests compile
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
       test_flags: --features=alloc --no-run
