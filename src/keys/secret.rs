@@ -13,7 +13,7 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error, Serializable};
-use dusk_jubjub::{JubJubScalar, GENERATOR_EXTENDED};
+use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;

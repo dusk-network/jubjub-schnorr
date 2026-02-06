@@ -11,7 +11,7 @@ use dusk_bytes::Serializable;
 use ff::Field;
 use jubjub_schnorr::multisig;
 use jubjub_schnorr::{Error, PublicKey, SecretKey, Signature};
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, rngs::StdRng};
 
 #[test]
 #[allow(non_snake_case)]

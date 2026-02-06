@@ -9,8 +9,8 @@ use dusk_bytes::Serializable;
 use dusk_jubjub::JubJubScalar;
 use ff::Field;
 use jubjub_schnorr::{Error, PublicKeyDouble, SecretKey, SignatureDouble};
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 #[test]
 fn sign_verify() {

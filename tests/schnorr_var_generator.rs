@@ -6,13 +6,13 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_jubjub::{JubJubScalar, GENERATOR_EXTENDED};
+use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
 use ff::Field;
 use jubjub_schnorr::{
     Error, PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen,
 };
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 #[test]
 fn sign_verify() {

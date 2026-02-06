@@ -4,14 +4,14 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use ff::Field;
 use jubjub_schnorr::{
-    gadgets, PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen,
+    PublicKeyVarGen, SecretKeyVarGen, SignatureVarGen, gadgets,
 };
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use dusk_plonk::prelude::Error as PlonkError;
 use dusk_plonk::prelude::*;
