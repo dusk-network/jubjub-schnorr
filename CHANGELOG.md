@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `dusk-poseidon` to v0.42.0-rc.0
 - Update `dusk-plonk` to 0.22.0-rc.0
 - Move to stable MSRV 1.85
+- Move to rust edition 2024
 
 ## [0.6.0] - 2025-02-06
 
