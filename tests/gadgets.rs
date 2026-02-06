@@ -8,11 +8,11 @@ use dusk_plonk::prelude::Error as PlonkError;
 use dusk_plonk::prelude::*;
 use ff::Field;
 use jubjub_schnorr::{
-    gadgets, PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey,
-    SecretKeyVarGen, Signature, SignatureDouble, SignatureVarGen,
+    PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey, SecretKeyVarGen,
+    Signature, SignatureDouble, SignatureVarGen, gadgets,
 };
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 lazy_static::lazy_static! {
     pub static ref PP: PublicParameters = {

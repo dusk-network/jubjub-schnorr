@@ -147,7 +147,7 @@ pub fn verify_signature_double(
 /// - `u`: Witness for the random nonce used during signature generation.
 /// - `r`: Witness Point representing the nonce point `r = u*G`.
 /// - `pk`: Witness Point representing the public key `pk = sk*G`.
-/// - `gen`: Witness Point representing the variable generator `G`
+/// - `generator`: Witness Point representing the variable generator `G`
 /// - `msg`: Witness for the message.
 ///
 /// ### Returns
@@ -166,7 +166,7 @@ pub fn verify_signature_var_gen(
     u: Witness,
     r: WitnessPoint,
     pk: WitnessPoint,
-    gen: WitnessPoint,
+    generator: WitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
     let r_x = *r.x();
@@ -180,7 +180,7 @@ pub fn verify_signature_var_gen(
         HashGadget::digest_truncated(composer, Domain::Other, &challenge)[0];
 
     // TODO: check whether we need to append the generator as a constant
-    let s_a = composer.component_mul_point(u, gen);
+    let s_a = composer.component_mul_point(u, generator);
     let s_b = composer.component_mul_point(challenge_hash, pk);
     let point = composer.component_add_point(s_a, s_b);
 

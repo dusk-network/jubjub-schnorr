@@ -4,12 +4,14 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use ff::Field;
-use jubjub_schnorr::{gadgets, PublicKeyDouble, SecretKey, SignatureDouble};
-use rand::rngs::StdRng;
+use jubjub_schnorr::{PublicKeyDouble, SecretKey, SignatureDouble, gadgets};
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use dusk_plonk::prelude::Error as PlonkError;
 use dusk_plonk::prelude::*;
@@ -25,7 +27,7 @@ lazy_static::lazy_static! {
     };
 }
 
-static mut CONSTRAINTS: usize = 0;
+static CONSTRAINTS: AtomicUsize = AtomicUsize::new(0);
 static LABEL: &[u8; 12] = b"dusk-network";
 
 fn bench_prover<C>(rng: &mut StdRng, prover: &Prover, circuit: &C)
@@ -73,9 +75,7 @@ impl Circuit for SigDoubleCircuit {
         gadgets::verify_signature_double(composer, u, r, r_p, pk, pk_p, m)
             .expect("this is infallible");
 
-        unsafe {
-            CONSTRAINTS = composer.constraints();
-        }
+        CONSTRAINTS.store(composer.constraints(), Ordering::Relaxed);
 
         Ok(())
     }
@@ -91,15 +91,13 @@ fn proof_creation_signature_double(c: &mut Criterion) {
     let circuit = SigDoubleCircuit::valid(&mut rng);
 
     // We benchmark the prover
-    unsafe {
-        let log = &format!(
-            "Signature double proof creation ({} constraints)",
-            CONSTRAINTS
-        );
-        c.bench_function(log, |b| {
-            b.iter(|| bench_prover(&mut rng, &prover, &circuit))
-        });
-    }
+    let log = &format!(
+        "Signature double proof creation ({} constraints)",
+        CONSTRAINTS.load(Ordering::Relaxed)
+    );
+    c.bench_function(log, |b| {
+        b.iter(|| bench_prover(&mut rng, &prover, &circuit))
+    });
 }
 
 criterion_group! {

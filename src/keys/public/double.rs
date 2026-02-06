@@ -7,7 +7,7 @@
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Serializable};
 use dusk_jubjub::{
-    JubJubAffine, JubJubExtended, GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED,
+    GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubAffine, JubJubExtended,
 };
 
 use crate::{Error, SecretKey, SignatureDouble};

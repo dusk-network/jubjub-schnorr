@@ -12,8 +12,8 @@ use jubjub_schnorr::{
     PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey, SecretKeyVarGen,
     Signature, SignatureDouble, SignatureVarGen,
 };
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use serde::Serialize;
 
 fn assert_canonical_json<T>(
@@ -64,7 +64,7 @@ fn serde_signature() -> Result<(), Box<dyn std::error::Error>> {
     let sig = sk.sign(&mut rng, msg);
     let ser = assert_canonical_json(
         &sig,
-        "\"3RaYppgCj8gGPTqx7R2RCvL8L8VwtHEXNuMrmGYiyfHBYgsLTPfc96DoyD6jhD8PhN4aRycx5jL6kNcCL2ieVEct\""
+        "\"3RaYppgCj8gGPTqx7R2RCvL8L8VwtHEXNuMrmGYiyfHBYgsLTPfc96DoyD6jhD8PhN4aRycx5jL6kNcCL2ieVEct\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);
@@ -78,7 +78,7 @@ fn serde_public_key_double() -> Result<(), Box<dyn std::error::Error>> {
     let pk = PublicKeyDouble::from(&sk);
     let ser = assert_canonical_json(
         &pk,
-        "\"4otCV6kFoJ6PXxwcFM1z9AFyiqwGHp3VPj3rUBCD25TcyNJWtMqSfNndztYMjG6RodvSpTvnZQjpMEvD1dCodKZd\""
+        "\"4otCV6kFoJ6PXxwcFM1z9AFyiqwGHp3VPj3rUBCD25TcyNJWtMqSfNndztYMjG6RodvSpTvnZQjpMEvD1dCodKZd\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(pk, deser);
@@ -93,7 +93,7 @@ fn serde_signature_double() -> Result<(), Box<dyn std::error::Error>> {
     let sig = sk.sign_double(&mut rng, msg);
     let ser = assert_canonical_json(
         &sig,
-        "\"2VLaiWNVxxsCgBKu7qSXY6PYN12Xmrqg2ASGhjs7TMgx8fQg7esQXhqomzKK8gcDoMEUCsheFVDjRpEpmAwCbSLoRnZ9yJWDPwude6Zi1RLEFDKsahXpBtdQkrnX6YYxfBhy\""
+        "\"2VLaiWNVxxsCgBKu7qSXY6PYN12Xmrqg2ASGhjs7TMgx8fQg7esQXhqomzKK8gcDoMEUCsheFVDjRpEpmAwCbSLoRnZ9yJWDPwude6Zi1RLEFDKsahXpBtdQkrnX6YYxfBhy\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);
@@ -106,7 +106,7 @@ fn serde_public_key_var_gen() -> Result<(), Box<dyn std::error::Error>> {
     let pk = PublicKeyVarGen::from(&SecretKeyVarGen::random(&mut rng));
     let ser = assert_canonical_json(
         &pk,
-        "\"CNFKfgP331GhG5uVaMftF2Dgm9TWUoF9tqj7VJwf66QTXiMX73u8jhBiHHEu9wckBrrwR8X9H5Yt4NJ9GGEzWR3\""
+        "\"CNFKfgP331GhG5uVaMftF2Dgm9TWUoF9tqj7VJwf66QTXiMX73u8jhBiHHEu9wckBrrwR8X9H5Yt4NJ9GGEzWR3\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(pk, deser);
@@ -119,7 +119,7 @@ fn serde_secret_key_var_gen() -> Result<(), Box<dyn std::error::Error>> {
     let sk = SecretKeyVarGen::random(&mut rng);
     let ser = assert_canonical_json(
         &sk,
-        "\"DuexcrF7ezofjV6RPDabrqKgEtjzWURdaLSp1vdig84eUbZw4Ud7y9qCnmiZBDMKVoik12DXo1YBeHG3C7CHZYh\""
+        "\"DuexcrF7ezofjV6RPDabrqKgEtjzWURdaLSp1vdig84eUbZw4Ud7y9qCnmiZBDMKVoik12DXo1YBeHG3C7CHZYh\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(sk, deser);
@@ -134,7 +134,7 @@ fn serde_signature_var_gen() -> Result<(), Box<dyn std::error::Error>> {
     let sig = sk.sign(&mut rng, msg);
     let ser = assert_canonical_json(
         &sig,
-        "\"2stTAEp4aUw3XwWU8W5bC4RSNnseTTYdoLo3xPyentVBLgtzTyH4jSP5ehUJQdvoz5fzHKPEiVV3hiVWnYMwsLMC\""
+        "\"2stTAEp4aUw3XwWU8W5bC4RSNnseTTYdoLo3xPyentVBLgtzTyH4jSP5ehUJQdvoz5fzHKPEiVV3hiVWnYMwsLMC\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);

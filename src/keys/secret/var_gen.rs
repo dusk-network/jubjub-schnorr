@@ -7,7 +7,7 @@
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error, Serializable};
 use dusk_jubjub::{
-    JubJubAffine, JubJubExtended, JubJubScalar, GENERATOR_EXTENDED,
+    GENERATOR_EXTENDED, JubJubAffine, JubJubExtended, JubJubScalar,
 };
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
@@ -85,8 +85,8 @@ impl Serializable<64> for SecretKeyVarGen {
     fn to_bytes(&self) -> [u8; 64] {
         let mut buf = [0u8; 64];
         let sk_bytes = self.sk.to_bytes();
-        let gen: JubJubAffine = self.generator.into();
-        let gen_bytes = gen.to_bytes();
+        let generator: JubJubAffine = self.generator.into();
+        let gen_bytes = generator.to_bytes();
         buf[..32].copy_from_slice(&sk_bytes);
         buf[32..].copy_from_slice(&gen_bytes);
         buf
