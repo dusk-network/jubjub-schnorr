@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use criterion::{Criterion, criterion_group, criterion_main};
 
 use ff::Field;
@@ -27,7 +29,7 @@ lazy_static::lazy_static! {
     };
 }
 
-static mut CONSTRAINTS: usize = 0;
+static CONSTRAINTS: AtomicUsize = AtomicUsize::new(0);
 static LABEL: &[u8; 12] = b"dusk-network";
 
 fn bench_prover<C>(rng: &mut StdRng, prover: &Prover, circuit: &C)
@@ -74,9 +76,7 @@ impl Circuit for SigVarGenCircuit {
         let _result =
             gadgets::verify_signature_var_gen(composer, u, r, pk, generator, m);
 
-        unsafe {
-            CONSTRAINTS = composer.constraints();
-        }
+        CONSTRAINTS.store(composer.constraints(), Ordering::Relaxed);
 
         Ok(())
     }
@@ -92,15 +92,13 @@ fn proof_creation_signature_var_generation(c: &mut Criterion) {
     let circuit = SigVarGenCircuit::valid(&mut rng);
 
     // We benchmark the prover
-    unsafe {
-        let log = &format!(
-            "Signature variable generator proof creation {} constraints)",
-            CONSTRAINTS
-        );
-        c.bench_function(log, |b| {
-            b.iter(|| bench_prover(&mut rng, &prover, &circuit))
-        });
-    }
+    let log = &format!(
+        "Signature variable generator proof creation ({} constraints)",
+        CONSTRAINTS.load(Ordering::Relaxed)
+    );
+    c.bench_function(log, |b| {
+        b.iter(|| bench_prover(&mut rng, &prover, &circuit))
+    });
 }
 
 criterion_group! {
