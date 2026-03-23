@@ -4,9 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_bytes::Error as DuskBytesError;
-
 use core::fmt;
+
+use dusk_bytes::Error as DuskBytesError;
 
 /// Standard error for the interface
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

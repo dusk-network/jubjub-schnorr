@@ -8,11 +8,10 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 use dusk_poseidon::{Domain, Hash};
-
-use crate::PublicKey;
-
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
+
+use crate::PublicKey;
 
 /// Structure representing a Schnorr signature with a double-key mechanism.
 ///
@@ -44,8 +43,8 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// assert!(pk_double.verify(&signature, message).is_ok());
 /// ```
 ///
-/// [`G`]: `GENERATOR_EXTENDED`
-/// [`G'`]: `GENERATOR_NUMS_EXTENDED`
+/// [`G`]: dusk_jubjub::GENERATOR_EXTENDED
+/// [`G'`]: dusk_jubjub::GENERATOR_NUMS_EXTENDED
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "rkyv-impl",
@@ -89,7 +88,7 @@ impl SignatureDouble {
 
     /// Returns true if the inner point is valid according to certain criteria.
     ///
-    /// A [`DoubleSignature`] is considered valid if its inner points `R` and
+    /// A [`SignatureDouble`] is considered valid if its inner points `R` and
     /// `R_prime` meet the following conditions:
     /// 1. It is free of an $h$-torsion component and exists within the
     ///    $q$-order subgroup $\mathbb{G}_2$.

@@ -19,14 +19,12 @@ mod serde_support;
 
 pub use error::Error;
 pub use keys::public::PublicKey;
-pub use keys::secret::SecretKey;
-pub use signatures::Signature;
-
 pub use keys::public::double::PublicKeyDouble;
-pub use signatures::double::SignatureDouble;
-
 pub use keys::public::var_gen::PublicKeyVarGen;
+pub use keys::secret::SecretKey;
 pub use keys::secret::var_gen::SecretKeyVarGen;
+pub use signatures::Signature;
+pub use signatures::double::SignatureDouble;
 pub use signatures::var_gen::SignatureVarGen;
 
 #[allow(non_snake_case)]

@@ -8,11 +8,10 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 use dusk_poseidon::{Domain, Hash};
-
-use crate::PublicKeyVarGen;
-
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
+
+use crate::PublicKeyVarGen;
 
 /// An Schnorr SignatureVarGen, produced by signing a message with a
 /// [`SecretKeyVarGen`].
