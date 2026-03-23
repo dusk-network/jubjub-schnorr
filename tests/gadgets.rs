@@ -4,8 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use dusk_plonk::prelude::Error as PlonkError;
-use dusk_plonk::prelude::*;
+use dusk_plonk::prelude::{Error as PlonkError, *};
 use ff::Field;
 use jubjub_schnorr::{
     PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey, SecretKeyVarGen,

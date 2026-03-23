@@ -8,11 +8,10 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 use dusk_poseidon::{Domain, Hash};
-
-use crate::PublicKey;
-
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
+
+use crate::PublicKey;
 
 /// Structure representing a Schnorr signature with a double-key mechanism.
 ///

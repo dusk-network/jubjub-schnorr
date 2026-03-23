@@ -9,11 +9,10 @@ use dusk_bytes::{DeserializableSlice, Serializable};
 use dusk_jubjub::{
     GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubAffine, JubJubExtended,
 };
-
-use crate::{Error, SecretKey, SignatureDouble};
-
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
+
+use crate::{Error, SecretKey, SignatureDouble};
 
 /// Structure representing a [`PublicKeyDouble`], consisting of two
 /// [`JubJubExtended`] poinst on the JubJub curve.

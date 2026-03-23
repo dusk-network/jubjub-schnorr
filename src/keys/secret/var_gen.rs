@@ -11,12 +11,11 @@ use dusk_jubjub::{
 };
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{Archive, Deserialize, Serialize};
 use zeroize::Zeroize;
 
 use crate::{PublicKeyVarGen, SecretKey, SignatureVarGen};
-
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{Archive, Deserialize, Serialize};
 
 impl SecretKey {
     /// Create a [`SecretKeyVarGen`], a `SecretKey` with a generator

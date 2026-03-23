@@ -7,11 +7,10 @@
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use dusk_jubjub::{JubJubAffine, JubJubExtended};
-
-use crate::{Error, SecretKeyVarGen, SignatureVarGen};
-
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
+
+use crate::{Error, SecretKeyVarGen, SignatureVarGen};
 
 /// Structure representing a [`PublicKeyVarGen`], consisting of a public key
 /// [`JubJubExtended`] point and a variable generator [`JubJubExtended`] point

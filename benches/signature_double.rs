@@ -7,14 +7,11 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use criterion::{Criterion, criterion_group, criterion_main};
-
+use dusk_plonk::prelude::{Error as PlonkError, *};
 use ff::Field;
 use jubjub_schnorr::{PublicKeyDouble, SecretKey, SignatureDouble, gadgets};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
-
-use dusk_plonk::prelude::Error as PlonkError;
-use dusk_plonk::prelude::*;
 
 const CAPACITY: usize = 13;
 

@@ -9,9 +9,9 @@
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use ff::Field;
-use jubjub_schnorr::multisig;
-use jubjub_schnorr::{Error, PublicKey, SecretKey, Signature};
-use rand::{SeedableRng, rngs::StdRng};
+use jubjub_schnorr::{Error, PublicKey, SecretKey, Signature, multisig};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 #[test]
 #[allow(non_snake_case)]
