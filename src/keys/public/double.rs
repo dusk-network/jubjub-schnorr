@@ -28,8 +28,8 @@ use crate::{Error, SecretKey, SignatureDouble};
 ///
 /// ## Fields
 ///
-/// - `(pk, pk')`: two [`PublicKey`], where `pk` is generated with [`G`] and
-///   `pk'` with [`G'`]
+/// - `(pk, pk')`: two public keys, where `pk` is generated with [`G`] and `pk'`
+///   with [`G'`]
 ///
 /// Generate a [`PublicKeyDouble`] from a [`SecretKey`]:
 /// ## Example
@@ -43,8 +43,8 @@ use crate::{Error, SecretKey, SignatureDouble};
 /// let pk_double = PublicKeyDouble::from(&sk);
 /// ```
 ///
-/// [`G`]: `GENERATOR_EXTENDED`
-/// [`G'`]: `GENERATOR_NUMS_EXTENDED`
+/// [`G`]: dusk_jubjub::GENERATOR_EXTENDED
+/// [`G'`]: dusk_jubjub::GENERATOR_NUMS_EXTENDED
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",

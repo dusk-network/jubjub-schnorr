@@ -24,7 +24,7 @@ impl SecretKey {
     /// # Parameters
     ///
     /// * `generator`: A `JubJubExtended` point that will replace
-    /// `GENERATOR_EXTENDED` in the signature algorithm
+    ///   `GENERATOR_EXTENDED` in the signature algorithm
     ///
     /// # Returns
     ///

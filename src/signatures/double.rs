@@ -43,8 +43,8 @@ use crate::PublicKey;
 /// assert!(pk_double.verify(&signature, message).is_ok());
 /// ```
 ///
-/// [`G`]: `GENERATOR_EXTENDED`
-/// [`G'`]: `GENERATOR_NUMS_EXTENDED`
+/// [`G`]: dusk_jubjub::GENERATOR_EXTENDED
+/// [`G'`]: dusk_jubjub::GENERATOR_NUMS_EXTENDED
 #[derive(Default, PartialEq, Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "rkyv-impl",
@@ -88,7 +88,7 @@ impl SignatureDouble {
 
     /// Returns true if the inner point is valid according to certain criteria.
     ///
-    /// A [`DoubleSignature`] is considered valid if its inner points `R` and
+    /// A [`SignatureDouble`] is considered valid if its inner points `R` and
     /// `R_prime` meet the following conditions:
     /// 1. It is free of an $h$-torsion component and exists within the
     ///    $q$-order subgroup $\mathbb{G}_2$.
