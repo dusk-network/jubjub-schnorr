@@ -112,6 +112,11 @@ impl Serializable<64> for SignatureVarGen {
 }
 
 // Create a challenge hash for the signature scheme with a variable generator.
+//
+// The hash binds to `R || pk || G || m`, where `G` is the generator point.
+// Including the generator is essential for the VarGen scheme: the verification
+// equation `u * G + c * pk == R` uses `G`, so the challenge must commit to it
+// to prevent cross-generator ambiguity.
 #[allow(non_snake_case)]
 pub(crate) fn challenge_hash(
     R: &JubJubExtended,
@@ -120,6 +125,7 @@ pub(crate) fn challenge_hash(
 ) -> JubJubScalar {
     let R_coordinates = R.to_hash_inputs();
     let pk_coordinates = pk.public_key().to_hash_inputs();
+    let gen_coordinates = pk.generator().to_hash_inputs();
 
     Hash::digest_truncated(
         Domain::Other,
@@ -128,6 +134,8 @@ pub(crate) fn challenge_hash(
             R_coordinates[1],
             pk_coordinates[0],
             pk_coordinates[1],
+            gen_coordinates[0],
+            gen_coordinates[1],
             message,
         ],
     )[0]

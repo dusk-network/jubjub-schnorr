@@ -113,10 +113,10 @@ impl PublicKeyVarGen {
             return Err(Error::InvalidPoint);
         }
 
-        // Compute challenge value, c = H(R||pk||m);
-        let c = crate::signatures::challenge_hash(
+        // Compute challenge value, c = H(R||pk||G||m);
+        let c = crate::signatures::var_gen::challenge_hash(
             sig_var_gen.R(),
-            self.public_key().into(),
+            *self,
             message,
         );
 

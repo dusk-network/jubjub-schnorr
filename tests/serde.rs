@@ -134,7 +134,7 @@ fn serde_signature_var_gen() -> Result<(), Box<dyn std::error::Error>> {
     let sig = sk.sign(&mut rng, msg);
     let ser = assert_canonical_json(
         &sig,
-        "\"2stTAEp4aUw3XwWU8W5bC4RSNnseTTYdoLo3xPyentVBLgtzTyH4jSP5ehUJQdvoz5fzHKPEiVV3hiVWnYMwsLMC\"",
+        "\"2Z8gXEx2czaUDtWkLYRWrfibfzZnD7LWbWStjeLSmi3xX9C2sp1QWRPC1KGRGLDhTNYEfymTxkcXwbx8Zsu9LJL6\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);

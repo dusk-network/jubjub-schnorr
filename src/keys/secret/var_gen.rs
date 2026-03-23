@@ -158,7 +158,7 @@ impl SecretKeyVarGen {
     /// This function performs the following cryptographic operations:
     /// - Generates a random nonce `r`.
     /// - Computes `R = r * G`.
-    /// - Computes the challenge `c = H(R || pk || m)`.
+    /// - Computes the challenge `c = H(R || pk || G || m)`.
     /// - Computes the signature `u = r - c * sk`.
     ///
     /// ## Parameters
@@ -208,7 +208,7 @@ impl SecretKeyVarGen {
         // R = r * G
         let R = self.generator() * r;
 
-        // Compute challenge value, c = H(R||pk||m);
+        // Compute challenge value, c = H(R||pk||G||m);
         let c = crate::signatures::var_gen::challenge_hash(
             &R,
             PublicKeyVarGen::from(self),
