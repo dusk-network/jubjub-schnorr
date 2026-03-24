@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use hedged nonce generation in all Schnorr sign variants to prevent
+  secret key recovery under weak RNGs [P1.13-4]
 - Include generator point in VarGen Schnorr challenge hash
 - Update `dusk-poseidon` to v0.42.0-rc.0
 - Update `dusk-plonk` to 0.22.0-rc.0

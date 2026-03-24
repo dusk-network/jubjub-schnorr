@@ -9,6 +9,7 @@
 
 mod error;
 mod keys;
+mod nonce;
 mod signatures;
 
 #[cfg(feature = "zk")]

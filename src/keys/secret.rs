@@ -156,8 +156,9 @@ impl SecretKey {
     where
         R: RngCore + CryptoRng,
     {
-        // Create random scalar value for scheme, r
-        let r = JubJubScalar::random(rng);
+        // Create hedged nonce: mixes RNG output with (sk, msg) so that
+        // a weak RNG alone cannot cause nonce reuse.
+        let r = crate::nonce::hedged_nonce(rng, &self.0, msg);
 
         // Derive a point from r, to sign with the message
         // R = r * G
