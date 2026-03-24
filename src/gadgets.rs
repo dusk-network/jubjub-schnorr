@@ -175,11 +175,13 @@ pub fn verify_signature_var_gen(
     let pk_x = *pk.x();
     let pk_y = *pk.y();
 
-    let challenge = [r_x, r_y, pk_x, pk_y, msg];
+    let gen_x = *generator.x();
+    let gen_y = *generator.y();
+
+    let challenge = [r_x, r_y, pk_x, pk_y, gen_x, gen_y, msg];
     let challenge_hash =
         HashGadget::digest_truncated(composer, Domain::Other, &challenge)[0];
 
-    // TODO: check whether we need to append the generator as a constant
     let s_a = composer.component_mul_point(u, generator);
     let s_b = composer.component_mul_point(challenge_hash, pk);
     let point = composer.component_add_point(s_a, s_b);
