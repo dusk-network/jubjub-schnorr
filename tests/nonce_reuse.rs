@@ -253,3 +253,78 @@ fn key_recovery_attack_fails() {
         );
     }
 }
+
+/// With the same key and message under a broken RNG, `sign` and
+/// `sign_double` currently call `hedged_nonce` with identical inputs,
+/// producing the same nonce `r`. Since the challenge hashes differ
+/// between variants, an attacker with both signatures can recover the
+/// secret key: `sk = (u1 - u2) / (c2 - c1)`.
+///
+/// This test demonstrates that cross-variant nonce reuse is prevented
+/// by variant-specific domain separation in the nonce derivation.
+#[test]
+fn key_recovery_cross_variant_fails() {
+    let mut rng = StdRng::seed_from_u64(0xcafe);
+    let sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let msg = BlsScalar::from(77u64);
+
+    // Sign the same message with the same key using both variants
+    // under a broken RNG that always produces the same output.
+    let sig_std = sk.sign(&mut ConstRng(0x42), msg);
+    let sig_dbl = sk.sign_double(&mut ConstRng(0x42), msg);
+
+    // Both signatures must be independently valid
+    assert!(pk.verify(&sig_std, msg).is_ok());
+
+    let pk_dbl = jubjub_schnorr::PublicKeyDouble::from(&sk);
+    assert!(pk_dbl.verify(&sig_dbl, msg).is_ok());
+
+    // Attempt the cross-variant key recovery attack.
+    // Standard challenge: H(R_x, R_y, pk_x, pk_y, msg)
+    let r_std = sig_std.R();
+    let r_std_coords = r_std.to_hash_inputs();
+    let pk_coords = pk.as_ref().to_hash_inputs();
+    let c_std: JubJubScalar = dusk_poseidon::Hash::digest_truncated(
+        dusk_poseidon::Domain::Other,
+        &[
+            r_std_coords[0],
+            r_std_coords[1],
+            pk_coords[0],
+            pk_coords[1],
+            msg,
+        ],
+    )[0];
+
+    // Double challenge: H(R_x, R_y, R'_x, R'_y, pk_x, pk_y, msg)
+    let r_dbl = sig_dbl.R();
+    let r_dbl_coords = r_dbl.to_hash_inputs();
+    let r_prime = sig_dbl.R_prime();
+    let r_prime_coords = r_prime.to_hash_inputs();
+    let c_dbl: JubJubScalar = dusk_poseidon::Hash::digest_truncated(
+        dusk_poseidon::Domain::Other,
+        &[
+            r_dbl_coords[0],
+            r_dbl_coords[1],
+            r_prime_coords[0],
+            r_prime_coords[1],
+            pk_coords[0],
+            pk_coords[1],
+            msg,
+        ],
+    )[0];
+
+    // If nonce r is shared: u_std - u_dbl = (c_dbl - c_std) * sk
+    let delta_u = sig_std.u() - sig_dbl.u();
+    let delta_c = c_dbl - c_std;
+
+    if let Some(delta_c_inv) = Option::<JubJubScalar>::from(delta_c.invert()) {
+        let recovered_sk = SecretKey::from(delta_u * delta_c_inv);
+
+        assert_ne!(
+            recovered_sk, sk,
+            "cross-variant key recovery succeeded — sign and \
+             sign_double share nonces without domain separation"
+        );
+    }
+}
