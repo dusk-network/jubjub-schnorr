@@ -64,7 +64,7 @@ fn serde_signature() -> Result<(), Box<dyn std::error::Error>> {
     let sig = sk.sign(&mut rng, msg);
     let ser = assert_canonical_json(
         &sig,
-        "\"YPcFwsvLhkNWfCc266wtGMjyxjmdrFK4YSZGPSzqTsQaVdZdvuDFMUCdaadYgtwviYwNAERihs1S4aDR3dc5fif\"",
+        "\"4Ck7MhW5SJrdKAuR6REJBQLNcPr3uBBVPkipXvDfhFfXwUdyokH3ZMKsPEcbzmNmPBpriBmKq3kugjs3oCztFixs\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);
@@ -93,7 +93,7 @@ fn serde_signature_double() -> Result<(), Box<dyn std::error::Error>> {
     let sig = sk.sign_double(&mut rng, msg);
     let ser = assert_canonical_json(
         &sig,
-        "\"29JmtoxVsbNxbtQwrGKcxZsS2Ez3qfyKgK9RZh6mdPzKSKE5quDbo3v3WaXrqDYe8P6rgPpoq7jfezZyvCYJ4nXqRsRH9SUqeqZKHTBrVrgmFE8QZcfg7LXJcRcaTB8HdwBd\"",
+        "\"iHdQeckrz3UmicDqvHJRBjpQjg9U96QECj3qq9s8txc5dwMJXyb8W7FAb88igmjaaVWSSqVgCEqJpvUzDXNHwAYytut4PNQ58h2JN4mt79XHAq3dpvpVdp9MJG59KQ5AVWu\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);

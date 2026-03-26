@@ -63,7 +63,7 @@ impl SecretKey {
     {
         // Create hedged nonce: mixes RNG output with (sk, msg) so that
         // a weak RNG alone cannot cause nonce reuse.
-        let r = crate::nonce::hedged_nonce(rng, &self.0, message);
+        let r = crate::nonce::hedged_nonce_double(rng, &self.0, message);
 
         // Derive two points from r, to sign with the message
         // R = r * G

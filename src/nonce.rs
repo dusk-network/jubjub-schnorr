@@ -17,11 +17,18 @@ use dusk_poseidon::{Domain, Hash};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
-/// Generate a hedged nonce by mixing RNG output with deterministic
-/// data derived from the secret key and message.
+/// Domain separator tags for variant-specific nonce derivation.
 ///
-/// `nonce = H(random || sk || msg)` where H is the Poseidon hash
-/// truncated to the JubJub scalar field.
+/// These prevent cross-variant nonce reuse: without them, `sign` and
+/// `sign_double` would produce the same nonce for the same (sk, msg)
+/// under a broken RNG, enabling key recovery via the differing
+/// challenge hashes.
+const TAG_STANDARD: BlsScalar = BlsScalar::from_raw([1, 0, 0, 0]);
+const TAG_DOUBLE: BlsScalar = BlsScalar::from_raw([2, 0, 0, 0]);
+
+/// Generate a hedged nonce for the standard Schnorr signature.
+///
+/// `nonce = H(random || sk || tag_standard || msg)`
 pub(crate) fn hedged_nonce<R>(
     rng: &mut R,
     sk: &JubJubScalar,
@@ -30,48 +37,67 @@ pub(crate) fn hedged_nonce<R>(
 where
     R: RngCore + CryptoRng,
 {
-    hedged_nonce_with_generator(rng, sk, msg, None)
+    let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
+    // H(rng || sk || tag || msg) -> JubJubScalar
+    Hash::digest_truncated(Domain::Other, &[rng_bls, sk_bls, TAG_STANDARD, msg])
+        [0]
 }
 
-/// Generate a hedged nonce, optionally including a generator point.
+/// Generate a hedged nonce for the double Schnorr signature.
 ///
-/// For the variable-generator variant, the generator is included in the
-/// hash to prevent cross-generator nonce reuse when the same key signs
-/// the same message under different generators with a broken RNG.
-pub(crate) fn hedged_nonce_with_generator<R>(
+/// `nonce = H(random || sk || tag_double || msg)`
+pub(crate) fn hedged_nonce_double<R>(
     rng: &mut R,
     sk: &JubJubScalar,
     msg: BlsScalar,
-    generator: Option<&JubJubExtended>,
 ) -> JubJubScalar
 where
     R: RngCore + CryptoRng,
 {
-    // Draw randomness from the RNG
+    let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
+    // H(rng || sk || tag || msg) -> JubJubScalar
+    Hash::digest_truncated(Domain::Other, &[rng_bls, sk_bls, TAG_DOUBLE, msg])
+        [0]
+}
+
+/// Generate a hedged nonce for the variable-generator variant.
+///
+/// The generator coordinates serve as an implicit domain separator,
+/// so no additional tag is needed.
+///
+/// `nonce = H(random || sk || gen_x || gen_y || msg)`
+pub(crate) fn hedged_nonce_var_gen<R>(
+    rng: &mut R,
+    sk: &JubJubScalar,
+    msg: BlsScalar,
+    generator: &JubJubExtended,
+) -> JubJubScalar
+where
+    R: RngCore + CryptoRng,
+{
+    let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
+    let gen_coords = generator.to_hash_inputs();
+    // H(rng || sk || gen_x || gen_y || msg) -> JubJubScalar
+    Hash::digest_truncated(
+        Domain::Other,
+        &[rng_bls, sk_bls, gen_coords[0], gen_coords[1], msg],
+    )[0]
+}
+
+/// Draw randomness and convert inputs to BlsScalar for Poseidon.
+fn prepare_inputs<R>(rng: &mut R, sk: &JubJubScalar) -> (BlsScalar, BlsScalar)
+where
+    R: RngCore + CryptoRng,
+{
     let rng_scalar = JubJubScalar::random(rng);
 
-    // Convert the secret key and RNG scalar to BlsScalar for Poseidon.
     // Both JubJubScalar and BlsScalar are 32-byte little-endian field
     // elements. The JubJub scalar field is smaller than the BLS scalar
     // field, so every JubJubScalar byte representation is a valid
     // BlsScalar.
     let rng_bls = BlsScalar::from_bytes_wide(&widen(rng_scalar.to_bytes()));
     let sk_bls = BlsScalar::from_bytes_wide(&widen(sk.to_bytes()));
-
-    match generator {
-        Some(g) => {
-            let gen_coords = g.to_hash_inputs();
-            // H(rng || sk || gen_x || gen_y || msg) -> JubJubScalar
-            Hash::digest_truncated(
-                Domain::Other,
-                &[rng_bls, sk_bls, gen_coords[0], gen_coords[1], msg],
-            )[0]
-        }
-        // H(rng || sk || msg) -> JubJubScalar
-        None => {
-            Hash::digest_truncated(Domain::Other, &[rng_bls, sk_bls, msg])[0]
-        }
-    }
+    (rng_bls, sk_bls)
 }
 
 /// Zero-extend a 32-byte array to 64 bytes for `from_bytes_wide`.

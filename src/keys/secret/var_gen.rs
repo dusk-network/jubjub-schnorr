@@ -203,11 +203,11 @@ impl SecretKeyVarGen {
     {
         // Create hedged nonce: mixes RNG output with (sk, generator, msg)
         // so that a weak RNG alone cannot cause nonce reuse.
-        let r = crate::nonce::hedged_nonce_with_generator(
+        let r = crate::nonce::hedged_nonce_var_gen(
             rng,
             &self.sk,
             msg,
-            Some(self.generator()),
+            self.generator(),
         );
 
         // Derive a points from r, to sign with the message
