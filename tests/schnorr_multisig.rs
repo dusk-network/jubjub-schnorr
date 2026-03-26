@@ -149,13 +149,72 @@ fn rogue_key_attack() {
 }
 
 #[test]
+#[allow(non_snake_case)]
+fn verify_keys_standalone() {
+    let mut rng = StdRng::seed_from_u64(42u64);
+
+    let sk_1 = SecretKey::random(&mut rng);
+    let pk_1 = PublicKey::from(&sk_1);
+    let proof_1 = multisig::prove_key(&mut rng, &sk_1);
+
+    let sk_2 = SecretKey::random(&mut rng);
+    let pk_2 = PublicKey::from(&sk_2);
+    let proof_2 = multisig::prove_key(&mut rng, &sk_2);
+
+    // Valid proofs pass
+    assert!(multisig::verify_keys(&[pk_1, pk_2], &[proof_1, proof_2]).is_ok());
+
+    // Swapped proofs fail
+    assert_eq!(
+        multisig::verify_keys(&[pk_1, pk_2], &[proof_2, proof_1]),
+        Err(Error::InvalidKeyProof)
+    );
+
+    // Mismatched lengths fail
+    assert_eq!(
+        multisig::verify_keys(&[pk_1, pk_2], &[proof_1]),
+        Err(Error::InvalidKeyProof)
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn verify_keys_rejects_rogue_key() {
+    let mut rng = StdRng::seed_from_u64(0xdeadbeef);
+
+    let sk_alice = SecretKey::random(&mut rng);
+    let pk_alice = PublicKey::from(&sk_alice);
+    let sk_mallory = SecretKey::random(&mut rng);
+
+    // Mallory crafts a rogue public key
+    let pk_mallory_rogue = PublicKey::from(
+        GENERATOR_EXTENDED * sk_mallory.as_ref() - pk_alice.as_ref(),
+    );
+
+    let proof_alice = multisig::prove_key(&mut rng, &sk_alice);
+    // Mallory can only prove knowledge of sk_mallory, not the discrete
+    // log of pk_mallory_rogue
+    let fake_proof = multisig::prove_key(&mut rng, &sk_mallory);
+
+    let pk_vec = vec![pk_alice, pk_mallory_rogue];
+    let proof_vec = vec![proof_alice, fake_proof];
+
+    assert_eq!(
+        multisig::verify_keys(&pk_vec, &proof_vec),
+        Err(Error::InvalidKeyProof),
+        "verify_keys must reject Mallory's rogue key"
+    );
+}
+
+#[test]
 #[should_panic]
 #[allow(non_snake_case)]
 fn duplicated_nonce() {
     let mut rng = StdRng::seed_from_u64(2321u64);
 
     let sk = SecretKey::random(&mut rng);
-    let pk_vec = vec![];
+    let pk = PublicKey::from(&sk);
+    let pk_vec = vec![pk];
 
     let message = BlsScalar::random(&mut rng);
 

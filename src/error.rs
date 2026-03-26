@@ -19,6 +19,9 @@ pub enum Error {
     InvalidPoint,
     /// Error variants for the multisignature scheme
     DuplicatedNonce,
+    /// A signer's proof-of-knowledge of their secret key is invalid, or
+    /// the signer's secret key does not match any registered public key
+    InvalidKeyProof,
 }
 
 impl From<DuskBytesError> for Error {
@@ -39,6 +42,9 @@ impl fmt::Display for Error {
             }
             Self::DuplicatedNonce => {
                 write!(f, "Duplicated Nonce in multi-sig")
+            }
+            Self::InvalidKeyProof => {
+                write!(f, "Invalid key proof-of-knowledge in multi-sig")
             }
         }
     }
