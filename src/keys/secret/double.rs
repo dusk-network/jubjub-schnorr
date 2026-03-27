@@ -5,8 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_bls12_381::BlsScalar;
-use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubScalar};
-use ff::Field;
+use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED};
 use rand_core::{CryptoRng, RngCore};
 
 use crate::{PublicKey, SecretKey, SignatureDouble};
@@ -62,8 +61,9 @@ impl SecretKey {
     where
         R: RngCore + CryptoRng,
     {
-        // Create random scalar value for scheme, r
-        let r = JubJubScalar::random(rng);
+        // Create hedged nonce: mixes RNG output with (sk, msg) so that
+        // a weak RNG alone cannot cause nonce reuse.
+        let r = crate::nonce::hedged_nonce_double(rng, &self.0, message);
 
         // Derive two points from r, to sign with the message
         // R = r * G
