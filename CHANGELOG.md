@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add key verification round to multisig (rogue-key mitigation) with
+  `prove_key` and `verify_keys` functions
+- Add signer membership check in `multisig::sign_round_2` to reject
+  secret keys that do not correspond to any registered public key
+
 ### Changed
 
 - Use hedged nonce generation with variant-specific domain separators

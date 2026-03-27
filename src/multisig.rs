@@ -43,10 +43,14 @@
 //!
 //! let message = BlsScalar::random(&mut rng);
 //!
-//! // Key verification: all signers send their public key to
-//! // all the other signers, along with a Schnorr signature
-//! // that proves knowledge of the corresponding secret key
+//! // Key verification: each signer proves knowledge of their secret key.
+//! // All participants must verify all proofs before proceeding.
+//! let proof_1 = multisig::prove_key(&mut rng, &sk_1);
+//! let proof_2 = multisig::prove_key(&mut rng, &sk_2);
 //! let pk_vec = vec![pk_1, pk_2];
+//! let proof_vec = vec![proof_1, proof_2];
+//! multisig::verify_keys(&pk_vec, &proof_vec)
+//!     .expect("all key proofs should be valid");
 //!
 //! // First round: all signers compute the following elements
 //! let (r_1, s_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
@@ -99,6 +103,47 @@ use ff::Field;
 use rand_core::{CryptoRng, RngCore};
 
 use crate::{Error, PublicKey, SecretKey, Signature};
+
+/// Creates a proof-of-knowledge of a secret key for use in multisig key
+/// verification.
+///
+/// Each signer must produce a proof before participating in the signing
+/// protocol. This prevents rogue-key attacks where a malicious signer
+/// crafts their public key as a function of honest signers' keys.
+///
+/// The proof is a standard Schnorr signature over a domain-separated
+/// challenge derived from the signer's public key.
+pub fn prove_key<R: RngCore + CryptoRng>(
+    rng: &mut R,
+    sk: &SecretKey,
+) -> Signature {
+    let pk = PublicKey::from(&*sk);
+    let challenge = key_proof_challenge(&pk);
+    sk.sign(rng, challenge)
+}
+
+/// Verifies all key proofs-of-knowledge for a set of signers.
+///
+/// Each signer must prove they know the discrete log of their public key
+/// before the multisig protocol proceeds. This prevents rogue-key
+/// attacks.
+///
+/// Returns `Ok(())` if every proof is valid, or `Err(InvalidKeyProof)`
+/// if any proof fails verification.
+pub fn verify_keys(
+    pk_vec: &[PublicKey],
+    proof_vec: &[Signature],
+) -> Result<(), Error> {
+    if pk_vec.len() != proof_vec.len() {
+        return Err(Error::InvalidKeyProof);
+    }
+    for (pk, proof) in pk_vec.iter().zip(proof_vec.iter()) {
+        let challenge = key_proof_challenge(pk);
+        pk.verify(proof, challenge)
+            .map_err(|_| Error::InvalidKeyProof)?;
+    }
+    Ok(())
+}
 
 /// Performs the first round to sign a message using the
 /// multisignature scheme
@@ -153,6 +198,14 @@ pub fn sign_round_2(
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
 ) -> Result<JubJubScalar, Error> {
+    // Verify the signer is a member of the key set. This prevents a
+    // rogue-key attacker from computing a share with a secret key that
+    // does not correspond to any registered public key.
+    let signer_pk = PublicKey::from(&*sk);
+    if !pk_vec.contains(&signer_pk) {
+        return Err(Error::InvalidKeyProof);
+    }
+
     // Check if (R_i == R_j) || (S_i == S_j) for any i != j
     // and return error if so
     for i in 0..R_vec.len() {
@@ -195,6 +248,23 @@ pub fn combine(
     let u = z_vec.iter().sum();
 
     Signature::new(u, RSa)
+}
+
+/// Computes a domain-separated challenge for key proof-of-knowledge.
+fn key_proof_challenge(pk: &PublicKey) -> BlsScalar {
+    use dusk_poseidon::{Domain, Hash};
+
+    let pk_coordinates = pk.as_ref().to_hash_inputs();
+    Hash::digest_truncated(
+        Domain::Other,
+        &[
+            // Domain separator to distinguish key proofs from other hashes
+            BlsScalar::from(0x6d756c7469736967), // "multisig" in hex
+            pk_coordinates[0],
+            pk_coordinates[1],
+        ],
+    )[0]
+    .into()
 }
 
 /// Performs some common operations required in different parts
