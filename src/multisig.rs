@@ -100,6 +100,17 @@ use rand_core::{CryptoRng, RngCore};
 
 use crate::{Error, PublicKey, SecretKey, Signature};
 
+/// Computes the aggregate public key for a set of signers.
+///
+/// Use this to compute the verification key for a multisignature.
+pub fn aggregate_pk(pk_vec: &[PublicKey]) -> PublicKey {
+    let mut pk_agg = JubJubExtended::default();
+    for pk in pk_vec {
+        pk_agg += pk.as_ref();
+    }
+    PublicKey::from(pk_agg)
+}
+
 /// Performs the first round to sign a message using the
 /// multisignature scheme
 ///
