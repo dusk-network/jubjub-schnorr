@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add MuSig-style delinearized key aggregation to multisig for
+  rogue-key protection, with `aggregate_pk` function for computing
+  the verification key
+
 ### Changed
 
 - Use hedged nonce generation with variant-specific domain separators

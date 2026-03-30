@@ -8,12 +8,18 @@
 
 //! # Multisignature Module
 //!
-//! Implementation of the `SpeedyMuSig` Schnorr-based
-//! multisignature scheme. It allows several signers to
-//! create a signature that proves a message to be signed by
-//! them all, given their public keys. The signature can be
-//! verified using the same function used for the standard
-//! Schnorr signature, using the sum of all the signers' public keys.
+//! Implementation of a MuSig-style Schnorr-based multisignature scheme
+//! with delinearized key aggregation. It allows several signers to
+//! create a signature that proves a message to be signed by them all,
+//! given their public keys.
+//!
+//! Delinearization prevents rogue-key attacks by weighting each public
+//! key with a coefficient derived from hashing the full key set:
+//!
+//! ```text
+//! d_i = H(pk_i, pk_1, pk_2, ..., pk_n)
+//! pk_agg = d_1 * pk_1 + d_2 * pk_2 + ... + d_n * pk_n
+//! ```
 //!
 //! reference: https://eprint.iacr.org/2021/1375.pdf - pag. 19
 //!
@@ -43,9 +49,6 @@
 //!
 //! let message = BlsScalar::random(&mut rng);
 //!
-//! // Key verification: all signers send their public key to
-//! // all the other signers, along with a Schnorr signature
-//! // that proves knowledge of the corresponding secret key
 //! let pk_vec = vec![pk_1, pk_2];
 //!
 //! // First round: all signers compute the following elements
@@ -85,8 +88,8 @@
 //! // A signer combines all the shares into a signature `sig`
 //! let sig = multisig::combine(&z_vec, &pk_vec, &R_vec, &S_vec, &message);
 //!
-//! // Anyone can verify using the sum of all the signers' public keys
-//! let pk = PublicKey::from(pk_1.as_ref() + pk_2.as_ref());
+//! // Anyone can verify using the delinearized aggregate public key
+//! let pk = multisig::aggregate_pk(&pk_vec);
 //! assert!(pk.verify(&sig, message).is_ok());
 //! ```
 
@@ -100,13 +103,22 @@ use rand_core::{CryptoRng, RngCore};
 
 use crate::{Error, PublicKey, SecretKey, Signature};
 
-/// Computes the aggregate public key for a set of signers.
+/// Computes the delinearized aggregate public key for a set of signers.
+///
+/// Each public key is weighted by a coefficient derived from hashing the
+/// full key set, preventing rogue-key attacks:
+///
+/// ```text
+/// d_i = H(pk_i, pk_1, pk_2, ..., pk_n)
+/// pk_agg = d_1 * pk_1 + d_2 * pk_2 + ... + d_n * pk_n
+/// ```
 ///
 /// Use this to compute the verification key for a multisignature.
 pub fn aggregate_pk(pk_vec: &[PublicKey]) -> PublicKey {
     let mut pk_agg = JubJubExtended::default();
     for pk in pk_vec {
-        pk_agg += pk.as_ref();
+        let d = delinearization_coeff(pk, pk_vec);
+        pk_agg += pk.as_ref() * d;
     }
     PublicKey::from(pk_agg)
 }
@@ -144,7 +156,7 @@ where
 ///
 /// ## Parameters
 ///
-/// - `sk`: Reference to the random number generator.
+/// - `sk`: Reference to the secret key.
 /// - `r`: Random value.
 /// - `s`: Random value.
 /// - `pk_vec`: Vector of public keys.
@@ -174,10 +186,12 @@ pub fn sign_round_2(
         }
     }
 
+    let signer_pk = PublicKey::from(&*sk);
+    let d_i = delinearization_coeff(&signer_pk, pk_vec);
     let (a, c, _RSa) = multisig_common(pk_vec, R_vec, S_vec, msg);
 
-    // Compute the share z = r + s * a - c * sk,
-    Ok(r + (s * a) - (c * sk.as_ref()))
+    // Compute the share z = r + s * a - c * d_i * sk
+    Ok(r + (s * a) - (c * d_i * sk.as_ref()))
 }
 
 /// Combines all the multisignature shares `z_vec`.
@@ -208,6 +222,28 @@ pub fn combine(
     Signature::new(u, RSa)
 }
 
+/// Computes the delinearization coefficient for a signer's public key
+/// given the full set of public keys.
+///
+/// d_i = H(pk_i, pk_1, pk_2, ..., pk_n)
+fn delinearization_coeff(
+    pk_i: &PublicKey,
+    pk_vec: &[PublicKey],
+) -> JubJubScalar {
+    use dusk_poseidon::{Domain, Hash};
+
+    let mut preimage = vec![];
+    let pk_i_coords = pk_i.as_ref().to_hash_inputs();
+    preimage.push(pk_i_coords[0]);
+    preimage.push(pk_i_coords[1]);
+    for pk in pk_vec {
+        let coords = pk.as_ref().to_hash_inputs();
+        preimage.push(coords[0]);
+        preimage.push(coords[1]);
+    }
+    Hash::digest_truncated(Domain::Other, &preimage)[0]
+}
+
 /// Performs some common operations required in different parts
 /// of the multisignature scheme
 fn multisig_common(
@@ -218,10 +254,12 @@ fn multisig_common(
 ) -> (JubJubScalar, JubJubScalar, JubJubExtended) {
     use dusk_poseidon::{Domain, Hash};
 
-    // Sum all the public keys pk = pk_1 + pk_2 + ... + pk_n for `n` signers
+    // Compute the delinearized aggregate key
+    // pk = d_1 * pk_1 + d_2 * pk_2 + ... + d_n * pk_n
     let mut pk = JubJubExtended::default();
     for pk_it in pk_vec {
-        pk += pk_it.as_ref();
+        let d = delinearization_coeff(pk_it, pk_vec);
+        pk += pk_it.as_ref() * d;
     }
 
     // Compute the hash
