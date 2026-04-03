@@ -8,6 +8,7 @@ test: ## Run tests (all features, release mode)
 
 clippy: ## Run clippy
 	@cargo clippy --features rkyv/size_32,zk,serde -- -D warnings
+	@cargo clippy --no-default-features -- -D warnings
 
 cq: ## Run code quality checks (formatting + clippy)
 	@$(MAKE) fmt CHECK=1
