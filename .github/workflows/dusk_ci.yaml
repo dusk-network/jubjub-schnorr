@@ -3,40 +3,26 @@ on: [pull_request]
 name: Continuous integration
 
 jobs:
-  analyze:
-    name: Code Analysis
-    uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
+  code-quality:
+    name: Code quality
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
     with:
-      clippy_default: false
-      clippy_args: --features=rkyv/size_32,zk,serde
-
-  dusk_analyzer:
-    name: Dusk Analyzer
-    uses: dusk-network/.github/.github/workflows/dusk-analysis.yml@main
+      make_target: cq
 
   test:
-    name: Run Tests
-    runs-on: core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: make test
+    name: Run tests
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: test
 
-  build_benches:
-    name: Build Benchmarks
-    runs-on: core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: make build-benches
+  build-benches:
+    name: Build benchmarks
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: build-benches
 
   no-std:
-    name: Verify no_std + WASM compatibility
-    runs-on: core
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dsherret/rust-toolchain-file@v1
-      - uses: Swatinem/rust-cache@v2
-      - run: make no-std
+    name: Run no-std checks
+    uses: dusk-network/.github/.github/workflows/run-make.yml@main
+    with:
+      make_target: no-std
