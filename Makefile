@@ -9,8 +9,13 @@ test: ## Run tests (all features, release mode)
 clippy: ## Run clippy
 	@cargo clippy --features rkyv/size_32,zk,serde -- -D warnings
 
+cq: ## Run code quality checks (formatting + clippy)
+	@$(MAKE) fmt CHECK=1
+	@$(MAKE) clippy
+
 fmt: ## Format code
-	@cargo +nightly fmt --all
+	@rustup component add --toolchain nightly rustfmt 2>/dev/null || true
+	@cargo +nightly fmt --all $(if $(CHECK),-- --check,)
 
 check: ## Type-check
 	@cargo check --features zk,alloc,serde
@@ -28,4 +33,4 @@ no-std: ## Verify no_std + WASM compatibility
 clean: ## Clean build artifacts
 	@cargo clean
 
-.PHONY: help test clippy fmt check doc build-benches no-std clean
+.PHONY: help test clippy cq fmt check doc build-benches no-std clean
