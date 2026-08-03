@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enforce native-equivalent non-identity and prime-order point validation in
+  all PLONK signature verification gadgets
 - Use hedged nonce generation with variant-specific domain separators
   in all Schnorr sign variants to prevent secret key recovery under
   weak RNGs
