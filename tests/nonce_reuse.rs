@@ -296,20 +296,25 @@ fn key_recovery_cross_variant_fails() {
         ],
     )[0];
 
-    // Double challenge: H(R_x, R_y, R'_x, R'_y, pk_x, pk_y, msg)
+    // Double challenge:
+    // H(tag, R_x, R_y, R'_x, R'_y, pk_x, pk_y, pk'_x, pk'_y, msg)
     let r_dbl = sig_dbl.R();
     let r_dbl_coords = r_dbl.to_hash_inputs();
     let r_prime = sig_dbl.R_prime();
     let r_prime_coords = r_prime.to_hash_inputs();
+    let pk_prime_coords = pk_dbl.pk_prime().to_hash_inputs();
     let c_dbl: JubJubScalar = dusk_poseidon::Hash::digest_truncated(
         dusk_poseidon::Domain::Other,
         &[
+            BlsScalar::from(u64::from_be_bytes(*b"JJSCHDBL")),
             r_dbl_coords[0],
             r_dbl_coords[1],
             r_prime_coords[0],
             r_prime_coords[1],
             pk_coords[0],
             pk_coords[1],
+            pk_prime_coords[0],
+            pk_prime_coords[1],
             msg,
         ],
     )[0];

@@ -8,7 +8,7 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED};
 use rand_core::{CryptoRng, RngCore};
 
-use crate::{PublicKey, SecretKey, SignatureDouble};
+use crate::{PublicKeyDouble, SecretKey, SignatureDouble};
 
 impl SecretKey {
     /// Constructs a new `Signature` instance by signing a given message with
@@ -70,11 +70,11 @@ impl SecretKey {
         // R_prime = r * G'
         let R = GENERATOR_EXTENDED * r;
         let R_prime = GENERATOR_NUMS_EXTENDED * r;
-        // Compute challenge value, c = H(R||R_prime||pk||m);
+        // Compute challenge value, c = H(tag||R||R_prime||pk||pk_prime||m);
         let c = crate::signatures::double::challenge_hash(
             &R,
             &R_prime,
-            PublicKey::from(self),
+            PublicKeyDouble::from(self),
             message,
         );
 

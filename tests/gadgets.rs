@@ -4,7 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED};
 use dusk_plonk::prelude::{Error as PlonkError, *};
+use dusk_poseidon::{Domain, Hash};
 use ff::Field;
 use jubjub_schnorr::{
     PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey, SecretKeyVarGen,
@@ -207,6 +209,45 @@ impl SignatureDoubleCircuit {
             message: BlsScalar::zero(),
         }
     }
+
+    pub fn adaptive_secondary_key() -> Self {
+        let sk = SecretKey::from(JubJubScalar::from(17u64));
+        let pk = PublicKeyDouble::from(&sk);
+        let message = BlsScalar::from(23u64);
+        let nonce = JubJubScalar::from(31u64);
+        let r = GENERATOR_EXTENDED * nonce;
+        let r_p = GENERATOR_NUMS_EXTENDED * JubJubScalar::from(37u64);
+
+        let r_coordinates = r.to_hash_inputs();
+        let r_p_coordinates = r_p.to_hash_inputs();
+        let pk_coordinates = pk.pk().to_hash_inputs();
+        let legacy_challenge: JubJubScalar = Hash::digest_truncated(
+            Domain::Other,
+            &[
+                r_coordinates[0],
+                r_coordinates[1],
+                r_p_coordinates[0],
+                r_p_coordinates[1],
+                pk_coordinates[0],
+                pk_coordinates[1],
+                message,
+            ],
+        )[0];
+        let inverse_challenge = legacy_challenge
+            .invert()
+            .expect("the deterministic legacy challenge is nonzero");
+        let u = nonce - legacy_challenge * sk.as_ref();
+        let pk_p = (r_p - GENERATOR_NUMS_EXTENDED * u) * inverse_challenge;
+
+        Self {
+            u,
+            r,
+            r_p,
+            pk: *pk.pk(),
+            pk_p,
+            message,
+        }
+    }
 }
 
 impl Circuit for SignatureDoubleCircuit {
@@ -287,6 +328,11 @@ fn verify_signature_double() {
     prover
         .prove(&mut rng, &circuit)
         .expect_err("An all-identity double signature must be unsatisfiable");
+
+    let circuit = SignatureDoubleCircuit::adaptive_secondary_key();
+    prover
+        .prove(&mut rng, &circuit)
+        .expect_err("An adaptively solved secondary key must be unsatisfiable");
 }
 
 //

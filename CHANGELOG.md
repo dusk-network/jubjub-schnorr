@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Domain-separate double-signature challenges and bind both public keys;
+  signatures produced by earlier versions no longer verify
 - Enforce native-equivalent non-identity and prime-order point validation in
   all PLONK signature verification gadgets
 - Use hedged nonce generation with variant-specific domain separators
