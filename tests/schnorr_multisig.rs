@@ -32,8 +32,8 @@ fn sign_verify() {
     let pk_vec = vec![pk_1, pk_2];
 
     // First round: all signers compute the following elements
-    let (r_1, s_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
-    let (r_2, s_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
+    let (nonce_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
+    let (nonce_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
 
     // All signers share `R_vec` and `S_vec` with all the other signers
     let R_vec = vec![R_1, R_2];
@@ -42,8 +42,7 @@ fn sign_verify() {
     // Second round: all the signers compute their share `z`
     let z_1 = multisig::sign_round_2(
         &sk_1,
-        &r_1,
-        &s_1,
+        nonce_1,
         &pk_vec.clone(),
         &R_vec.clone(),
         &S_vec.clone(),
@@ -52,8 +51,7 @@ fn sign_verify() {
     .expect("Multisig Round 2 shouldn't fail");
     let z_2 = multisig::sign_round_2(
         &sk_2,
-        &r_2,
-        &s_2,
+        nonce_2,
         &pk_vec.clone(),
         &R_vec.clone(),
         &S_vec.clone(),
@@ -132,29 +130,95 @@ fn rogue_key_attack() {
 }
 
 #[test]
-#[should_panic]
 #[allow(non_snake_case)]
 fn duplicated_nonce() {
     let mut rng = StdRng::seed_from_u64(2321u64);
 
     let sk = SecretKey::random(&mut rng);
-    let pk_vec = vec![];
+    let pk = PublicKey::from(&sk);
+    let other_sk = SecretKey::random(&mut rng);
+    let other_pk = PublicKey::from(&other_sk);
+    let pk_vec = vec![pk, other_pk];
 
     let message = BlsScalar::random(&mut rng);
 
-    let (r, s, R, S) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
 
     let R_vec = vec![R, R]; // duplicated nonce
     let S_vec = vec![S, S]; // duplicated nonce
 
-    let _z = multisig::sign_round_2(
+    let result = multisig::sign_round_2(
         &sk,
-        &r,
-        &s,
+        nonce,
         &pk_vec.clone(),
         &R_vec.clone(),
         &S_vec.clone(),
         &message,
-    )
-    .expect("Multisig Round 2 should fail");
+    );
+
+    assert_eq!(result, Err(Error::DuplicatedNonce));
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn round_two_binds_nonce_to_signer_and_commitments() {
+    let mut rng = StdRng::seed_from_u64(0x1234);
+    let sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let (_, wrong_R, _) = multisig::sign_round_1(&mut rng);
+    let message = BlsScalar::random(&mut rng);
+
+    let result =
+        multisig::sign_round_2(&sk, nonce, &[pk], &[wrong_R], &[S], &message);
+
+    assert_eq!(result, Err(Error::InvalidMultisigTranscript));
+    assert_ne!(R, wrong_R);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn round_two_rejects_unequal_commitment_lengths() {
+    let mut rng = StdRng::seed_from_u64(0x5678);
+    let sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let message = BlsScalar::random(&mut rng);
+
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(&sk, nonce, &[pk], &[R, R], &[S], &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
+
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(&sk, nonce, &[pk], &[R], &[S, S], &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
+}
+
+#[test]
+fn legacy_reusable_nonces_recover_the_signing_key() {
+    let secret = dusk_jubjub::JubJubScalar::from(41u64);
+    let r = dusk_jubjub::JubJubScalar::from(43u64);
+    let s = dusk_jubjub::JubJubScalar::from(47u64);
+    let transcripts = [(2u64, 3u64), (5u64, 7u64), (11u64, 13u64)];
+    let responses = transcripts.map(|(a, c)| {
+        r + s * dusk_jubjub::JubJubScalar::from(a)
+            - secret * dusk_jubjub::JubJubScalar::from(c)
+    });
+
+    let delta_a_1 = dusk_jubjub::JubJubScalar::from(3u64);
+    let delta_a_2 = dusk_jubjub::JubJubScalar::from(9u64);
+    let neg_delta_c_1 = -dusk_jubjub::JubJubScalar::from(4u64);
+    let neg_delta_c_2 = -dusk_jubjub::JubJubScalar::from(10u64);
+    let delta_z_1 = responses[1] - responses[0];
+    let delta_z_2 = responses[2] - responses[0];
+    let determinant = delta_a_1 * neg_delta_c_2 - delta_a_2 * neg_delta_c_1;
+    let recovered = (delta_a_1 * delta_z_2 - delta_a_2 * delta_z_1)
+        * determinant
+            .invert()
+            .expect("the transcript coefficient matrix is invertible");
+
+    assert_eq!(recovered, secret);
 }

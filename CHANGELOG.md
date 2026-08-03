@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replace reusable raw multisignature nonce scalars with an opaque,
+  zeroizing, one-shot state consumed by `sign_round_2`
 - Redact secret scalar material from `SecretKey` and `SecretKeyVarGen` debug
   output
 - Domain-separate double-signature challenges and bind both public keys;
