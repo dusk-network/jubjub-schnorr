@@ -66,6 +66,18 @@ fn test_zeroize() {
 }
 
 #[test]
+fn debug_redacts_secret_keys() {
+    let sk = SecretKey::from(JubJubScalar::from(42u64));
+    let sk_var_gen = SecretKeyVarGen::new(
+        JubJubScalar::from(42u64),
+        dusk_jubjub::GENERATOR_EXTENDED,
+    );
+
+    assert_eq!(format!("{sk:?}"), "SecretKey(REDACTED)");
+    assert_eq!(format!("{sk_var_gen:?}"), "SecretKeyVarGen(REDACTED)");
+}
+
+#[test]
 fn partial_eq_pk_double() {
     let sk1 = SecretKey::random(&mut OsRng);
     let sk2 = SecretKey::random(&mut OsRng);
