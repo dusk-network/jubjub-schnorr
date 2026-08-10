@@ -11,7 +11,18 @@ use dusk_poseidon::{Domain, Hash};
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::PublicKey;
+use crate::PublicKeyDouble;
+
+/// Explicit transcript tag for the double-signature challenge.
+///
+/// Standard signatures and multisignatures intentionally share the same
+/// five-element transcript so an aggregate signature verifies through the
+/// standard verifier. Double and variable-generator signatures use distinct
+/// transcript shapes. Only the double format gets an explicit tag:
+/// retrofitting tags to the other formats would needlessly break their
+/// signature compatibility.
+pub(crate) const DOUBLE_CHALLENGE_DOMAIN: u64 =
+    u64::from_be_bytes(*b"JJSCHDBL");
 
 /// Structure representing a Schnorr signature with a double-key mechanism.
 ///
@@ -140,23 +151,68 @@ impl Serializable<96> for SignatureDouble {
 pub(crate) fn challenge_hash(
     R: &JubJubExtended,
     R_prime: &JubJubExtended,
-    pk: PublicKey,
+    pk: PublicKeyDouble,
     message: BlsScalar,
 ) -> JubJubScalar {
     let R_coordinates = R.to_hash_inputs();
     let R_p_coordinates = R_prime.to_hash_inputs();
-    let pk_coordinates = pk.as_ref().to_hash_inputs();
+    let pk_coordinates = pk.pk().to_hash_inputs();
+    let pk_p_coordinates = pk.pk_prime().to_hash_inputs();
 
     Hash::digest_truncated(
         Domain::Other,
         &[
+            BlsScalar::from(DOUBLE_CHALLENGE_DOMAIN),
             R_coordinates[0],
             R_coordinates[1],
             R_p_coordinates[0],
             R_p_coordinates[1],
             pk_coordinates[0],
             pk_coordinates[1],
+            pk_p_coordinates[0],
+            pk_p_coordinates[1],
             message,
         ],
     )[0]
+}
+
+#[cfg(test)]
+mod tests {
+    use dusk_bls12_381::BlsScalar;
+    use dusk_jubjub::{
+        GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubScalar,
+    };
+
+    use super::challenge_hash;
+    use crate::PublicKeyDouble;
+
+    #[test]
+    fn challenge_binds_both_public_keys() {
+        let r = GENERATOR_EXTENDED * JubJubScalar::from(11u64);
+        let r_prime = GENERATOR_NUMS_EXTENDED * JubJubScalar::from(11u64);
+        let message = BlsScalar::from(13u64);
+        let pk = PublicKeyDouble::from_raw_unchecked(
+            GENERATOR_EXTENDED * JubJubScalar::from(17u64),
+            GENERATOR_NUMS_EXTENDED * JubJubScalar::from(17u64),
+        );
+
+        let challenge = challenge_hash(&r, &r_prime, pk, message);
+        let changed_pk = PublicKeyDouble::from_raw_unchecked(
+            *pk.pk() + GENERATOR_EXTENDED,
+            *pk.pk_prime(),
+        );
+        let changed_pk_prime = PublicKeyDouble::from_raw_unchecked(
+            *pk.pk(),
+            *pk.pk_prime() + GENERATOR_NUMS_EXTENDED,
+        );
+
+        assert_ne!(
+            challenge,
+            challenge_hash(&r, &r_prime, changed_pk, message)
+        );
+        assert_ne!(
+            challenge,
+            challenge_hash(&r, &r_prime, changed_pk_prime, message)
+        );
+    }
 }

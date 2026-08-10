@@ -113,7 +113,15 @@ pub fn verify_signature_double(
     let pk_x = *pk.x();
     let pk_y = *pk.y();
 
-    let challenge = [r_x, r_y, r_p_x, r_p_y, pk_x, pk_y, msg];
+    let pk_p_x = *pk_p.x();
+    let pk_p_y = *pk_p.y();
+
+    let domain = composer.append_constant(BlsScalar::from(
+        crate::signatures::double::DOUBLE_CHALLENGE_DOMAIN,
+    ));
+    let challenge = [
+        domain, r_x, r_y, r_p_x, r_p_y, pk_x, pk_y, pk_p_x, pk_p_y, msg,
+    ];
     let challenge_hash =
         HashGadget::digest_truncated(composer, Domain::Other, &challenge)[0];
 

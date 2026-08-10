@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   zeroizing, one-shot state consumed by `sign_round_2`; require `R_vec` and
   `S_vec` to be index-aligned with `pk_vec`, with the signer's key appearing
   exactly once [#53]
+- Change the double-signature challenge format to domain-separate it and bind
+  both public keys; existing double signatures no longer verify, and new
+  signatures do not verify with earlier versions [#51]
 - Use hedged nonce generation with variant-specific domain separators
   in all Schnorr sign variants to prevent secret key recovery under
   weak RNGs
@@ -130,6 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#55]: https://github.com/dusk-network/jubjub-schnorr/issues/55
 [#52]: https://github.com/dusk-network/jubjub-schnorr/issues/52
 [#53]: https://github.com/dusk-network/jubjub-schnorr/issues/53
+[#51]: https://github.com/dusk-network/jubjub-schnorr/issues/51
 [#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#29]: https://github.com/dusk-network/jubjub-schnorr/issues/29
 [#25]: https://github.com/dusk-network/jubjub-schnorr/issues/25
