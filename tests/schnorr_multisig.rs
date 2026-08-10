@@ -8,7 +8,7 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_jubjub::GENERATOR_EXTENDED;
+use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
 use ff::Field;
 use jubjub_schnorr::{Error, PublicKey, SecretKey, Signature, multisig};
 use rand::SeedableRng;
@@ -64,7 +64,8 @@ fn sign_verify() {
     let z_vec = vec![z_1, z_2];
 
     // A signer combines all the shares into a signature `sig`
-    let sig = multisig::combine(&z_vec, &pk_vec, &R_vec, &S_vec, &message);
+    let sig = multisig::combine(&z_vec, &pk_vec, &R_vec, &S_vec, &message)
+        .expect("valid multisig transcript should combine");
 
     // Anyone can verify using the delinearized aggregate public key
     let pk = multisig::aggregate_pk(&pk_vec);
@@ -79,6 +80,40 @@ fn sign_verify() {
 
     // We test `to_from_bytes``
     assert_eq!(sig, Signature::from_bytes(&sig.to_bytes()).unwrap());
+}
+
+#[test]
+fn combine_rejects_invalid_lengths() {
+    let message = BlsScalar::from(1u64);
+    let z_vec = [JubJubScalar::from(1u64); 3];
+    let pk_vec = [PublicKey::from(GENERATOR_EXTENDED); 3];
+    let r_vec = [GENERATOR_EXTENDED; 3];
+    let s_vec = [GENERATOR_EXTENDED; 3];
+
+    for (z_len, pk_len, r_len, s_len) in [
+        (0, 0, 0, 0),
+        (1, 2, 2, 2),
+        (2, 1, 2, 2),
+        (2, 2, 1, 2),
+        (2, 2, 2, 1),
+        (3, 2, 2, 2),
+        (2, 3, 2, 2),
+        (2, 2, 3, 2),
+        (2, 2, 2, 3),
+        (2, 2, 3, 3),
+        (3, 3, 2, 2),
+    ] {
+        assert_eq!(
+            multisig::combine(
+                &z_vec[..z_len],
+                &pk_vec[..pk_len],
+                &r_vec[..r_len],
+                &s_vec[..s_len],
+                &message,
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+    }
 }
 
 /// Regression test: delinearization defeats the rogue-key attack.
