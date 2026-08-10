@@ -8,7 +8,7 @@ use dusk_plonk::prelude::{Error as PlonkError, *};
 use ff::Field;
 use jubjub_schnorr::{
     PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey, SecretKeyVarGen,
-    Signature, SignatureDouble, SignatureVarGen, gadgets,
+    gadgets,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -24,13 +24,33 @@ lazy_static::lazy_static! {
 
 const LABEL: &[u8] = b"dusk-network";
 
+fn invalid_points() -> [JubJubExtended; 3] {
+    let order_four_x = (-BlsScalar::one())
+        .sqrt()
+        .expect("minus one has a square root in the JubJub base field");
+    assert_ne!(order_four_x, BlsScalar::zero());
+
+    [
+        JubJubExtended::identity(),
+        // This unchecked affine witness is off-curve. Witness generation must
+        // remain panic-free and reject it through the constraints.
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), BlsScalar::zero())
+            .into(),
+        // (sqrt(-1), 0) has order four: it is on-curve and non-identity with
+        // x != 0, so only the subgroup constraint rejects it.
+        JubJubAffine::from_raw_unchecked(order_four_x, BlsScalar::zero())
+            .into(),
+    ]
+}
+
 //
 // Test verify_signature
 //
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct SignatureCircuit {
-    signature: Signature,
-    pk: PublicKey,
+    u: JubJubScalar,
+    r: JubJubExtended,
+    pk: JubJubExtended,
     message: BlsScalar,
 }
 
@@ -43,8 +63,9 @@ impl SignatureCircuit {
         let pk = PublicKey::from(&sk);
 
         Self {
-            signature,
-            pk,
+            u: *signature.u(),
+            r: *signature.R(),
+            pk: *pk.as_ref(),
             message,
         }
     }
@@ -58,19 +79,29 @@ impl SignatureCircuit {
         let pk = PublicKey::from(&sk_wrong);
 
         Self {
-            signature,
-            pk,
+            u: *signature.u(),
+            r: *signature.R(),
+            pk: *pk.as_ref(),
             message,
+        }
+    }
+
+    pub fn all_identity() -> Self {
+        Self {
+            u: JubJubScalar::zero(),
+            r: JubJubExtended::identity(),
+            pk: JubJubExtended::identity(),
+            message: BlsScalar::zero(),
         }
     }
 }
 
 impl Circuit for SignatureCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
-        let u = composer.append_witness(*self.signature.u());
-        let r = composer.append_point(self.signature.R());
+        let u = composer.append_witness(self.u);
+        let r = composer.append_point(self.r);
 
-        let pk = composer.append_point(self.pk.as_ref());
+        let pk = composer.append_point(self.pk);
         let msg = composer.append_witness(self.message);
 
         gadgets::verify_signature(composer, u, r, pk, msg)?;
@@ -100,6 +131,20 @@ fn verify_signature() {
         .verify(&proof, &pub_inputs)
         .expect("Verification should be successful");
 
+    for invalid_point in invalid_points() {
+        let mut invalid_r = circuit;
+        invalid_r.r = invalid_point;
+        prover
+            .prove(&mut rng, &invalid_r)
+            .expect_err("An invalid R point must be unsatisfiable");
+
+        let mut invalid_pk = circuit;
+        invalid_pk.pk = invalid_point;
+        prover
+            .prove(&mut rng, &invalid_pk)
+            .expect_err("An invalid public key must be unsatisfiable");
+    }
+
     //
     // Check proof creation of invalid circuit not possible
     let circuit = SignatureCircuit::invalid_random(&mut rng);
@@ -107,15 +152,23 @@ fn verify_signature() {
     prover
         .prove(&mut rng, &circuit)
         .expect_err("Proving invalid circuit shouldn't be possible");
+
+    let circuit = SignatureCircuit::all_identity();
+    prover
+        .prove(&mut rng, &circuit)
+        .expect_err("An all-identity signature must be unsatisfiable");
 }
 
 //
 // Test verify_signature_double
 //
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct SignatureDoubleCircuit {
-    signature: SignatureDouble,
-    pk_double: PublicKeyDouble,
+    u: JubJubScalar,
+    r: JubJubExtended,
+    r_p: JubJubExtended,
+    pk: JubJubExtended,
+    pk_p: JubJubExtended,
     message: BlsScalar,
 }
 
@@ -128,8 +181,11 @@ impl SignatureDoubleCircuit {
         let pk_double = PublicKeyDouble::from(&sk);
 
         Self {
-            signature,
-            pk_double,
+            u: *signature.u(),
+            r: *signature.R(),
+            r_p: *signature.R_prime(),
+            pk: *pk_double.pk(),
+            pk_p: *pk_double.pk_prime(),
             message,
         }
     }
@@ -143,21 +199,35 @@ impl SignatureDoubleCircuit {
         let pk_double = PublicKeyDouble::from(&sk_wrong);
 
         Self {
-            signature,
-            pk_double,
+            u: *signature.u(),
+            r: *signature.R(),
+            r_p: *signature.R_prime(),
+            pk: *pk_double.pk(),
+            pk_p: *pk_double.pk_prime(),
             message,
+        }
+    }
+
+    pub fn all_identity() -> Self {
+        Self {
+            u: JubJubScalar::zero(),
+            r: JubJubExtended::identity(),
+            r_p: JubJubExtended::identity(),
+            pk: JubJubExtended::identity(),
+            pk_p: JubJubExtended::identity(),
+            message: BlsScalar::zero(),
         }
     }
 }
 
 impl Circuit for SignatureDoubleCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
-        let u = composer.append_witness(*self.signature.u());
-        let r = composer.append_point(self.signature.R());
-        let r_p = composer.append_point(self.signature.R_prime());
+        let u = composer.append_witness(self.u);
+        let r = composer.append_point(self.r);
+        let r_p = composer.append_point(self.r_p);
 
-        let pk = composer.append_point(self.pk_double.pk());
-        let pk_p = composer.append_point(self.pk_double.pk_prime());
+        let pk = composer.append_point(self.pk);
+        let pk_p = composer.append_point(self.pk_p);
         let msg = composer.append_witness(self.message);
 
         gadgets::verify_signature_double(composer, u, r, r_p, pk, pk_p, msg)
@@ -189,6 +259,33 @@ fn verify_signature_double() {
         .verify(&proof, &pub_inputs)
         .expect("Verifying the proof should succeed");
 
+    for invalid_point in invalid_points() {
+        let invalid_circuits = [
+            SignatureDoubleCircuit {
+                r: invalid_point,
+                ..circuit
+            },
+            SignatureDoubleCircuit {
+                r_p: invalid_point,
+                ..circuit
+            },
+            SignatureDoubleCircuit {
+                pk: invalid_point,
+                ..circuit
+            },
+            SignatureDoubleCircuit {
+                pk_p: invalid_point,
+                ..circuit
+            },
+        ];
+
+        for invalid in invalid_circuits {
+            prover
+                .prove(&mut rng, &invalid)
+                .expect_err("An invalid double-signature point must fail");
+        }
+    }
+
     //
     // Check proof creation of invalid circuit not possible
     let circuit = SignatureDoubleCircuit::invalid_random(&mut rng);
@@ -196,15 +293,22 @@ fn verify_signature_double() {
     prover
         .prove(&mut rng, &circuit)
         .expect_err("Proving invalid circuit shouldn't be possible");
+
+    let circuit = SignatureDoubleCircuit::all_identity();
+    prover
+        .prove(&mut rng, &circuit)
+        .expect_err("An all-identity double signature must be unsatisfiable");
 }
 
 //
 // Test verify_signature_var_gen
 //
-#[derive(Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct SignatureVarGenCircuit {
-    signature: SignatureVarGen,
-    pk_var_gen: PublicKeyVarGen,
+    u: JubJubScalar,
+    r: JubJubExtended,
+    pk: JubJubExtended,
+    generator: JubJubExtended,
     message: BlsScalar,
 }
 
@@ -217,8 +321,10 @@ impl SignatureVarGenCircuit {
         let pk_var_gen = PublicKeyVarGen::from(&sk);
 
         Self {
-            signature,
-            pk_var_gen,
+            u: *signature.u(),
+            r: *signature.R(),
+            pk: *pk_var_gen.public_key(),
+            generator: *pk_var_gen.generator(),
             message,
         }
     }
@@ -232,20 +338,32 @@ impl SignatureVarGenCircuit {
         let pk_var_gen = PublicKeyVarGen::from(&sk_wrong);
 
         Self {
-            signature,
-            pk_var_gen,
+            u: *signature.u(),
+            r: *signature.R(),
+            pk: *pk_var_gen.public_key(),
+            generator: *pk_var_gen.generator(),
             message,
+        }
+    }
+
+    pub fn all_identity() -> Self {
+        Self {
+            u: JubJubScalar::zero(),
+            r: JubJubExtended::identity(),
+            pk: JubJubExtended::identity(),
+            generator: JubJubExtended::identity(),
+            message: BlsScalar::zero(),
         }
     }
 }
 
 impl Circuit for SignatureVarGenCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
-        let u = composer.append_witness(*self.signature.u());
-        let r = composer.append_point(self.signature.R());
+        let u = composer.append_witness(self.u);
+        let r = composer.append_point(self.r);
 
-        let pk_var_gen = composer.append_point(self.pk_var_gen.public_key());
-        let generator = composer.append_point(self.pk_var_gen.generator());
+        let pk_var_gen = composer.append_point(self.pk);
+        let generator = composer.append_point(self.generator);
         let msg = composer.append_witness(self.message);
 
         gadgets::verify_signature_var_gen(
@@ -278,6 +396,29 @@ fn verify_signature_var_gen() {
         .verify(&proof, &pub_inputs)
         .expect("Verification should be successful");
 
+    for invalid_point in invalid_points() {
+        let invalid_circuits = [
+            SignatureVarGenCircuit {
+                r: invalid_point,
+                ..circuit
+            },
+            SignatureVarGenCircuit {
+                pk: invalid_point,
+                ..circuit
+            },
+            SignatureVarGenCircuit {
+                generator: invalid_point,
+                ..circuit
+            },
+        ];
+
+        for invalid in invalid_circuits {
+            prover
+                .prove(&mut rng, &invalid)
+                .expect_err("An invalid variable-generator point must fail");
+        }
+    }
+
     //
     // Check proof creation of invalid circuit not possible
     let circuit = SignatureVarGenCircuit::invalid_random(&mut rng);
@@ -285,4 +426,9 @@ fn verify_signature_var_gen() {
     prover
         .prove(&mut rng, &circuit)
         .expect_err("Proving invalid circuit shouldn't be possible");
+
+    let circuit = SignatureVarGenCircuit::all_identity();
+    prover.prove(&mut rng, &circuit).expect_err(
+        "An all-identity variable-generator signature must be unsatisfiable",
+    );
 }
