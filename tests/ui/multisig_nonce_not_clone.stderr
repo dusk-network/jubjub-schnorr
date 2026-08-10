@@ -1,0 +1,11 @@
+error[E0277]: the trait bound `MultisigNonce: Clone` is not satisfied
+  --> tests/ui/multisig_nonce_not_clone.rs:13:22
+   |
+13 |     requires_clone::<MultisigNonce>();
+   |                      ^^^^^^^^^^^^^ the trait `Clone` is not implemented for `MultisigNonce`
+   |
+note: required by a bound in `requires_clone`
+  --> tests/ui/multisig_nonce_not_clone.rs:10:22
+   |
+10 | fn requires_clone<T: Clone>() {}
+   |                      ^^^^^ required by this bound in `requires_clone`

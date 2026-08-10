@@ -42,6 +42,7 @@ criterion = "0.3"
 rand = "0.8"
 lazy_static = "1.4"
 serde_json = "1.0"
+trybuild = "1.0"
 
 [[bench]]
 name = "signature"
@@ -62,7 +63,7 @@ required-features = ["zk"]
 alloc = []
 zk = ["dusk-plonk", "dusk-poseidon/zk"]
 rkyv-impl = ["dusk-jubjub/rkyv-impl", "rkyv", "bytecheck"]
-serde = ["serde/alloc", "bs58/alloc"]
+serde = ["dep:serde", "serde/alloc", "bs58/alloc"]
 
 [[test]]
 name = "gadgets"

@@ -1,0 +1,10 @@
+error[E0382]: use of moved value: `nonce`
+  --> tests/ui/multisig_nonce_reuse.rs:19:41
+   |
+16 |     let (nonce, r, s) = multisig::sign_round_1(&mut rng);
+   |          ----- move occurs because `nonce` has type `MultisigNonce`, which does not implement the `Copy` trait
+17 |
+18 |     let _ = multisig::sign_round_2(&sk, nonce, &[pk], &[r], &[s], &message);
+   |                                         ----- value moved here
+19 |     let _ = multisig::sign_round_2(&sk, nonce, &[pk], &[r], &[s], &message);
+   |                                         ^^^^^ value used here after move

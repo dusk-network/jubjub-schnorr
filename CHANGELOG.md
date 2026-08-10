@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Check that reusing a consumed `MultisigNonce` emits E0382 [#60]
 - Zeroize `SecretKey` when converting it into `SecretKeyVarGen` [#55]
 
 ## [0.6.0] - 2025-02-06
@@ -129,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#60]: https://github.com/dusk-network/jubjub-schnorr/issues/60
 [#54]: https://github.com/dusk-network/jubjub-schnorr/issues/54
 [#55]: https://github.com/dusk-network/jubjub-schnorr/issues/55
 [#52]: https://github.com/dusk-network/jubjub-schnorr/issues/52
