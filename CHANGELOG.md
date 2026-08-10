@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add MuSig-style delinearized key aggregation to multisig for
   rogue-key protection, with `aggregate_pk` function for computing
   the verification key
+- Add the one-shot `MultisigNonce` state [#53]
+- Add `Error::InvalidMultisigTranscript` for malformed multisignature inputs
+  [#53]
 
 ### Removed
 
@@ -22,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Redact secret scalar material from `SecretKey` and `SecretKeyVarGen` debug
   output [#52]
+- Replace reusable raw multisignature nonce scalars with an opaque,
+  zeroizing, one-shot state consumed by `sign_round_2`; require `R_vec` and
+  `S_vec` to be index-aligned with `pk_vec`, with the signer's key appearing
+  exactly once [#53]
 - Use hedged nonce generation with variant-specific domain separators
   in all Schnorr sign variants to prevent secret key recovery under
   weak RNGs
@@ -122,6 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#54]: https://github.com/dusk-network/jubjub-schnorr/issues/54
 [#55]: https://github.com/dusk-network/jubjub-schnorr/issues/55
 [#52]: https://github.com/dusk-network/jubjub-schnorr/issues/52
+[#53]: https://github.com/dusk-network/jubjub-schnorr/issues/53
 [#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#29]: https://github.com/dusk-network/jubjub-schnorr/issues/29
 [#25]: https://github.com/dusk-network/jubjub-schnorr/issues/25

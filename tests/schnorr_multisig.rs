@@ -32,8 +32,8 @@ fn sign_verify() {
     let pk_vec = vec![pk_1, pk_2];
 
     // First round: all signers compute the following elements
-    let (r_1, s_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
-    let (r_2, s_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
+    let (nonce_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
+    let (nonce_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
 
     // All signers share `R_vec` and `S_vec` with all the other signers
     let R_vec = vec![R_1, R_2];
@@ -42,8 +42,7 @@ fn sign_verify() {
     // Second round: all the signers compute their share `z`
     let z_1 = multisig::sign_round_2(
         &sk_1,
-        &r_1,
-        &s_1,
+        nonce_1,
         &pk_vec.clone(),
         &R_vec.clone(),
         &S_vec.clone(),
@@ -52,8 +51,7 @@ fn sign_verify() {
     .expect("Multisig Round 2 shouldn't fail");
     let z_2 = multisig::sign_round_2(
         &sk_2,
-        &r_2,
-        &s_2,
+        nonce_2,
         &pk_vec.clone(),
         &R_vec.clone(),
         &S_vec.clone(),
@@ -132,29 +130,108 @@ fn rogue_key_attack() {
 }
 
 #[test]
-#[should_panic]
 #[allow(non_snake_case)]
 fn duplicated_nonce() {
     let mut rng = StdRng::seed_from_u64(2321u64);
 
     let sk = SecretKey::random(&mut rng);
-    let pk_vec = vec![];
+    let pk = PublicKey::from(&sk);
+    let other_sk = SecretKey::random(&mut rng);
+    let other_pk = PublicKey::from(&other_sk);
+    let pk_vec = vec![pk, other_pk];
 
     let message = BlsScalar::random(&mut rng);
 
-    let (r, s, R, S) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
 
     let R_vec = vec![R, R]; // duplicated nonce
     let S_vec = vec![S, S]; // duplicated nonce
 
-    let _z = multisig::sign_round_2(
+    let result = multisig::sign_round_2(
         &sk,
-        &r,
-        &s,
+        nonce,
         &pk_vec.clone(),
         &R_vec.clone(),
         &S_vec.clone(),
         &message,
-    )
-    .expect("Multisig Round 2 should fail");
+    );
+
+    assert_eq!(result, Err(Error::DuplicatedNonce));
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn round_two_rejects_misaligned_commitments() {
+    let mut rng = StdRng::seed_from_u64(0x1234);
+    let sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let message = BlsScalar::random(&mut rng);
+
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let (_, wrong_R, _) = multisig::sign_round_1(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(&sk, nonce, &[pk], &[wrong_R], &[S], &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
+    assert_ne!(R, wrong_R);
+
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let (_, _, wrong_S) = multisig::sign_round_1(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(&sk, nonce, &[pk], &[R], &[wrong_S], &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
+    assert_ne!(S, wrong_S);
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn round_two_requires_exactly_one_signer_key() {
+    let mut rng = StdRng::seed_from_u64(0x3456);
+    let sk = SecretKey::random(&mut rng);
+    let other_sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let other_pk = PublicKey::from(&other_sk);
+    let message = BlsScalar::random(&mut rng);
+
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(&sk, nonce, &[other_pk], &[R], &[S], &message,),
+        Err(Error::InvalidMultisigTranscript)
+    );
+
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let (_, other_R, other_S) = multisig::sign_round_1(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(
+            &sk,
+            nonce,
+            &[pk, pk],
+            &[R, other_R],
+            &[S, other_S],
+            &message,
+        ),
+        Err(Error::InvalidMultisigTranscript)
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn round_two_rejects_unequal_commitment_lengths() {
+    let mut rng = StdRng::seed_from_u64(0x5678);
+    let sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let message = BlsScalar::random(&mut rng);
+
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(&sk, nonce, &[pk], &[R, R], &[S], &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
+
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(&sk, nonce, &[pk], &[R], &[S, S], &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
 }
