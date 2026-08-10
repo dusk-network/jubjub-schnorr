@@ -92,11 +92,11 @@ impl PublicKeyDouble {
             return Err(Error::InvalidPoint);
         }
 
-        // Compute challenge value, c = H(R||R_prime||pk||m);
+        // Compute challenge value, c = H(tag||R||R_prime||pk||pk_prime||m);
         let c = crate::signatures::double::challenge_hash(
             sig_double.R(),
             sig_double.R_prime(),
-            self.pk().into(),
+            *self,
             message,
         );
 

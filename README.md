@@ -85,15 +85,15 @@ To sign a message $m \in \mathbb{F}_q^×$:
 
 - Choose a random private nonce $r \in \mathbb{F}_p^×$.
 - Compute nonce points $R = rG \in \mathbb{G}$ and $R' = rG' \in \mathbb{G}$.
-- Compute challenge hash $c = H(R \parallel R' \parallel $PK \parallel m) \in \mathbb{F}_p$ where $\parallel$ denotes concatenation and $R, R'$ are represented as a bit strings.
+- Compute challenge hash $c = H(\mathsf{Double} \parallel R \parallel R' \parallel PK \parallel PK' \parallel m) \in \mathbb{F}_p$ where $\parallel$ denotes concatenation, $R, R'$ are represented as bit strings, and $\mathsf{Double}$ is the ASCII tag `JJSCHDBL` interpreted as a big-endian `u64` and absorbed as one field scalar.
 - Compute $u = r − sk \cdot c \in \mathbb{F}_p$.
 
 The signature is the tuple $(u, R, R') \in \mathbb{F}_p \times \mathbb{G} \times \mathbb{G}$.
 
 #### Verifying
 
-- Compute challenge hash $c = H(R \parallel R' \parallel $PK \parallel m) \in \mathbb{F}_p$.
-- Verify that $rG + cPK = R$ and $uG' + cPK' = R'$.
+- Compute challenge hash $c = H(\mathsf{Double} \parallel R \parallel R' \parallel PK \parallel PK' \parallel m) \in \mathbb{F}_p$, using the same `JJSCHDBL` field-scalar tag as signing.
+- Verify that $uG + cPK = R$ and $uG' + cPK' = R'$.
 
 If the signature was signed with the correct private key, this should hold true because:
 

@@ -93,7 +93,7 @@ fn serde_signature_double() -> Result<(), Box<dyn std::error::Error>> {
     let sig = sk.sign_double(&mut rng, msg);
     let ser = assert_canonical_json(
         &sig,
-        "\"iHdQeckrz3UmicDqvHJRBjpQjg9U96QECj3qq9s8txc5dwMJXyb8W7FAb88igmjaaVWSSqVgCEqJpvUzDXNHwAYytut4PNQ58h2JN4mt79XHAq3dpvpVdp9MJG59KQ5AVWu\"",
+        "\"23RrLejtpfZ3KbG9ddZeHWXmt7CtexrvHKZEkDDdgwSZgFXspEVqK9WSRYM9u4Yddd5vTPPpBqXG9MfFXRFjwvcYjiJmU8uqL8W9FBsuKCM1fvfqaae6G4oJ6v4MkMPhjQy3\"",
     )?;
     let deser = serde_json::from_str(&ser)?;
     assert_eq!(sig, deser);

@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+mod common;
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use dusk_jubjub::JubJubScalar;
@@ -64,4 +66,17 @@ fn sign_verify_identity_fails() {
     let sig = sk.sign_double(&mut rng, msg);
 
     assert_eq!(pk.verify(&sig, msg).unwrap_err(), Error::InvalidPoint);
+}
+
+#[test]
+fn adaptive_secondary_key_is_rejected() {
+    let fixture = common::legacy_double_signature_fixture();
+
+    assert!(fixture.public_key.is_valid());
+    assert_eq!(
+        fixture
+            .public_key
+            .verify(&fixture.signature, fixture.message),
+        Err(Error::InvalidSignature)
+    );
 }

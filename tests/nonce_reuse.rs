@@ -13,7 +13,7 @@
 //! recovery attack impossible.
 
 use dusk_bls12_381::BlsScalar;
-use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
+use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubScalar};
 use ff::Field;
 use jubjub_schnorr::{PublicKey, PublicKeyVarGen, SecretKey};
 use rand::SeedableRng;
@@ -296,23 +296,43 @@ fn key_recovery_cross_variant_fails() {
         ],
     )[0];
 
-    // Double challenge: H(R_x, R_y, R'_x, R'_y, pk_x, pk_y, msg)
+    // Double challenge:
+    // H(tag, R_x, R_y, R'_x, R'_y, pk_x, pk_y, pk'_x, pk'_y, msg)
     let r_dbl = sig_dbl.R();
     let r_dbl_coords = r_dbl.to_hash_inputs();
     let r_prime = sig_dbl.R_prime();
     let r_prime_coords = r_prime.to_hash_inputs();
+    let pk_prime_coords = pk_dbl.pk_prime().to_hash_inputs();
     let c_dbl: JubJubScalar = dusk_poseidon::Hash::digest_truncated(
         dusk_poseidon::Domain::Other,
         &[
+            BlsScalar::from(u64::from_be_bytes(*b"JJSCHDBL")),
             r_dbl_coords[0],
             r_dbl_coords[1],
             r_prime_coords[0],
             r_prime_coords[1],
             pk_coords[0],
             pk_coords[1],
+            pk_prime_coords[0],
+            pk_prime_coords[1],
             msg,
         ],
     )[0];
+
+    // Pin the reconstructed challenges to every verification equation so this
+    // regression fails if either hand-written transcript drifts.
+    assert_eq!(
+        GENERATOR_EXTENDED * sig_std.u() + pk.as_ref() * c_std,
+        *sig_std.R()
+    );
+    assert_eq!(
+        GENERATOR_EXTENDED * sig_dbl.u() + pk_dbl.pk() * c_dbl,
+        *sig_dbl.R()
+    );
+    assert_eq!(
+        GENERATOR_NUMS_EXTENDED * sig_dbl.u() + pk_dbl.pk_prime() * c_dbl,
+        *sig_dbl.R_prime()
+    );
 
     // If nonce r is shared: u_std - u_dbl = (c_dbl - c_std) * sk
     let delta_u = sig_std.u() - sig_dbl.u();

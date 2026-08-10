@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+mod common;
+
 use dusk_plonk::prelude::{Error as PlonkError, *};
 use ff::Field;
 use jubjub_schnorr::{
@@ -196,6 +198,16 @@ fn verify_signature_double() {
     prover
         .prove(&mut rng, &circuit)
         .expect_err("Proving invalid circuit shouldn't be possible");
+
+    let fixture = common::legacy_double_signature_fixture();
+    let circuit = SignatureDoubleCircuit {
+        signature: fixture.signature,
+        pk_double: fixture.public_key,
+        message: fixture.message,
+    };
+    prover
+        .prove(&mut rng, &circuit)
+        .expect_err("An adaptively solved secondary key must be unsatisfiable");
 }
 
 //
