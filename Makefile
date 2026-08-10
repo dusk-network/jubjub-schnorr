@@ -6,6 +6,9 @@ test: ## Run tests (all features, release mode)
 	@cargo test --no-default-features
 	@cargo test --features alloc --no-run
 
+update-compile-fail: ## Regenerate trybuild stderr; inspect changes before committing
+	@TRYBUILD=overwrite cargo test --test compile_fail --features alloc
+
 clippy: ## Run clippy
 	@cargo clippy --features rkyv/size_32,zk,serde -- -D warnings
 	@cargo clippy --no-default-features -- -D warnings
@@ -34,4 +37,4 @@ no-std: ## Verify no_std + WASM compatibility
 clean: ## Clean build artifacts
 	@cargo clean
 
-.PHONY: help test clippy cq fmt check doc build-benches no-std clean
+.PHONY: help test update-compile-fail clippy cq fmt check doc build-benches no-std clean
