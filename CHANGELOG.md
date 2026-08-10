@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rogue-key protection, with `aggregate_pk` function for computing
   the verification key
 
+### Removed
+
+- Remove `PartialOrd` and `Ord` from `SecretKey` [#54]
+
 ### Changed
 
 - Redact secret scalar material from `SecretKey` and `SecretKeyVarGen` debug
@@ -110,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#54]: https://github.com/dusk-network/jubjub-schnorr/issues/54
 [#52]: https://github.com/dusk-network/jubjub-schnorr/issues/52
 [#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#29]: https://github.com/dusk-network/jubjub-schnorr/issues/29

@@ -37,6 +37,17 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// goes out of scope, we advice calling `zeroize` before the variable goes out
 /// of scope.
 ///
+/// `SecretKey` deliberately does not implement ordering because ordering its
+/// secret scalar would require variable-time comparisons.
+///
+/// ```compile_fail
+/// use jubjub_schnorr::SecretKey;
+///
+/// fn requires_partial_ord<T: PartialOrd>() {}
+///
+/// requires_partial_ord::<SecretKey>();
+/// ```
+///
 /// ## Examples
 ///
 /// Generate a random `SecretKey`:
@@ -54,7 +65,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// sk.zeroize();
 /// ```
 #[allow(non_snake_case)]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Zeroize)]
+#[derive(Clone, PartialEq, Eq, Zeroize)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
