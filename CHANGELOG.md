@@ -15,12 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Enforce native-equivalent non-identity and prime-order point validation in
+  all PLONK signature verification gadgets; circuit shapes change, so proving
+  and verifier keys and cached circuits must be regenerated [#50]
 - Use hedged nonce generation with variant-specific domain separators
   in all Schnorr sign variants to prevent secret key recovery under
   weak RNGs
 - Include generator point in VarGen Schnorr challenge hash
 - Update `dusk-poseidon` to v0.42.0-rc.0
-- Update `dusk-plonk` to 0.22.0-rc.0
+- Update `dusk-plonk` to 0.22.1
 - Move to stable MSRV 1.85
 - Move to rust edition 2024
 
@@ -108,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#50]: https://github.com/dusk-network/jubjub-schnorr/issues/50
 [#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#29]: https://github.com/dusk-network/jubjub-schnorr/issues/29
 [#25]: https://github.com/dusk-network/jubjub-schnorr/issues/25

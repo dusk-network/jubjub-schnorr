@@ -12,6 +12,33 @@ use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED};
 use dusk_plonk::prelude::*;
 use dusk_poseidon::{Domain, HashGadget};
 
+/// Constrains a witnessed point to be a non-identity member of the prime-order
+/// JubJub subgroup.
+///
+/// Subgroup membership delegates to Plonk's shared, panic-free gadget. The
+/// separate inverse gate excludes the identity, matching native verification.
+fn constrain_valid_point(
+    composer: &mut Composer,
+    point: WitnessPoint,
+) -> TorsionFreeWitnessPoint {
+    let valid_point = composer.assert_torsion_free_point(point);
+
+    // The only prime-order JubJub point with x = 0 is the identity. Proving
+    // that x has an inverse therefore excludes it without branching on the
+    // witness value.
+    let x_inverse = composer[*point.x()].invert().unwrap_or(BlsScalar::zero());
+    let x_inverse = composer.append_witness(x_inverse);
+    composer.append_gate(
+        Constraint::new()
+            .mult(BlsScalar::one())
+            .constant(-BlsScalar::one())
+            .a(*point.x())
+            .b(x_inverse),
+    );
+
+    valid_point
+}
+
 /// Verifies a single-key Schnorr signature [`Signature`]within a Plonk circuit
 /// without requiring the secret key as a witness.
 ///
@@ -48,6 +75,9 @@ pub fn verify_signature(
     pk: WitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    let r_valid = constrain_valid_point(composer, r);
+    let pk_valid = constrain_valid_point(composer, pk);
+
     let r_x = *r.x();
     let r_y = *r.y();
 
@@ -59,10 +89,10 @@ pub fn verify_signature(
         HashGadget::digest_truncated(composer, Domain::Other, &challenge)[0];
 
     let s_a = composer.component_mul_generator(u, GENERATOR_EXTENDED)?;
-    let s_b = composer.component_mul_point(challenge_hash, pk);
+    let s_b = composer.component_mul_point(challenge_hash, pk_valid);
     let point = composer.component_add_point(s_a, s_b);
 
-    composer.assert_equal_point(r, point);
+    composer.assert_equal_point(r_valid.into(), point.into());
 
     Ok(())
 }
@@ -104,6 +134,11 @@ pub fn verify_signature_double(
     pk_p: WitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    let r_valid = constrain_valid_point(composer, r);
+    let r_p_valid = constrain_valid_point(composer, r_p);
+    let pk_valid = constrain_valid_point(composer, pk);
+    let pk_p_valid = constrain_valid_point(composer, pk_p);
+
     let r_x = *r.x();
     let r_y = *r.y();
 
@@ -118,15 +153,15 @@ pub fn verify_signature_double(
         HashGadget::digest_truncated(composer, Domain::Other, &challenge)[0];
 
     let s_a = composer.component_mul_generator(u, GENERATOR_EXTENDED)?;
-    let s_b = composer.component_mul_point(challenge_hash, pk);
+    let s_b = composer.component_mul_point(challenge_hash, pk_valid);
     let point = composer.component_add_point(s_a, s_b);
 
     let s_p_a = composer.component_mul_generator(u, GENERATOR_NUMS_EXTENDED)?;
-    let s_p_b = composer.component_mul_point(challenge_hash, pk_p);
+    let s_p_b = composer.component_mul_point(challenge_hash, pk_p_valid);
     let point_p = composer.component_add_point(s_p_a, s_p_b);
 
-    composer.assert_equal_point(r, point);
-    composer.assert_equal_point(r_p, point_p);
+    composer.assert_equal_point(r_valid.into(), point.into());
+    composer.assert_equal_point(r_p_valid.into(), point_p.into());
 
     Ok(())
 }
@@ -169,6 +204,10 @@ pub fn verify_signature_var_gen(
     generator: WitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    let r_valid = constrain_valid_point(composer, r);
+    let pk_valid = constrain_valid_point(composer, pk);
+    let generator_valid = constrain_valid_point(composer, generator);
+
     let r_x = *r.x();
     let r_y = *r.y();
 
@@ -182,11 +221,11 @@ pub fn verify_signature_var_gen(
     let challenge_hash =
         HashGadget::digest_truncated(composer, Domain::Other, &challenge)[0];
 
-    let s_a = composer.component_mul_point(u, generator);
-    let s_b = composer.component_mul_point(challenge_hash, pk);
+    let s_a = composer.component_mul_point(u, generator_valid);
+    let s_b = composer.component_mul_point(challenge_hash, pk_valid);
     let point = composer.component_add_point(s_a, s_b);
 
-    composer.assert_equal_point(r, point);
+    composer.assert_equal_point(r_valid.into(), point.into());
 
     Ok(())
 }

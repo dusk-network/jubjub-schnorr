@@ -30,11 +30,14 @@ ff = { version = "0.13", default-features = false }
 zeroize = { version = "1", default-features = false, features = ["derive"] }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
-dusk-plonk = { version = "0.22.0-rc.0", default-features = false, features = [
+dusk-plonk = { version = "0.22.1", default-features = false, features = [
     "alloc",
 ], optional = true }
 serde = { version = "1.0", default-features = false, optional = true }
 bs58 = { version = "0.4", default-features = false, optional = true }
+
+[patch.crates-io]
+dusk-plonk = { git = "https://github.com/dusk-network/plonk.git", rev = "d575fb8a4ae1114a78c4d091435e55830b3af7d6" }
 
 [dev-dependencies]
 rkyv = { version = "0.7", default-features = false, features = ["size_32"] }
