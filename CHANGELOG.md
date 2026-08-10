@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - Remove `PartialOrd` and `Ord` from `SecretKey` [#54]
+- Remove `Copy` from `SecretKeyVarGen` [#55]
 
 ### Changed
 
@@ -29,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `dusk-plonk` to 0.22.0-rc.0
 - Move to stable MSRV 1.85
 - Move to rust edition 2024
+
+### Fixed
+
+- Zeroize `SecretKey` when converting it into `SecretKeyVarGen` [#55]
 
 ## [0.6.0] - 2025-02-06
 
@@ -115,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#54]: https://github.com/dusk-network/jubjub-schnorr/issues/54
+[#55]: https://github.com/dusk-network/jubjub-schnorr/issues/55
 [#52]: https://github.com/dusk-network/jubjub-schnorr/issues/52
 [#3596]: https://github.com/dusk-network/rusk/issues/3596
 [#29]: https://github.com/dusk-network/jubjub-schnorr/issues/29
