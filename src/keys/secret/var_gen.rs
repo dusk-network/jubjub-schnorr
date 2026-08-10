@@ -32,10 +32,12 @@ impl SecretKey {
     ///
     /// A new [`SecretKeyVarGen`] instance.
     pub fn with_variable_generator(
-        self,
+        mut self,
         generator: JubJubExtended,
     ) -> SecretKeyVarGen {
-        SecretKeyVarGen::new(self.0, generator)
+        let secret = self.0;
+        self.zeroize();
+        SecretKeyVarGen::new(secret, generator)
     }
 }
 
@@ -43,10 +45,28 @@ impl SecretKey {
 /// scalar in the JubJub scalar field, with a variable generator,
 /// represented as a point on the JubJub curve.
 ///
+/// ## Safety
+///
+/// Call `zeroize` before discarding this value. Cloning creates another
+/// independently owned copy of the secret scalar, so every clone must be
+/// zeroized separately.
+///
+/// Moving a value does not guarantee that its previous storage is cleared.
+///
+/// `SecretKeyVarGen` cannot be copied implicitly:
+///
+/// ```compile_fail
+/// use jubjub_schnorr::SecretKeyVarGen;
+///
+/// fn requires_copy<T: Copy>() {}
+///
+/// requires_copy::<SecretKeyVarGen>();
+/// ```
+///
 /// ## Examples
 ///
-/// Generate a random `SecretKey`:
 /// Generating a random `SecretKeyVarGen` with a variable generator
+///
 /// ```
 /// use jubjub_schnorr::{SecretKey, SecretKeyVarGen};
 /// use rand::rngs::StdRng;
@@ -69,7 +89,7 @@ impl SecretKey {
 /// let sk_var_gen = SecretKeyVarGen::random(&mut rng);
 /// ```
 #[allow(non_snake_case)]
-#[derive(Clone, Copy, PartialEq, Default, Zeroize)]
+#[derive(Clone, PartialEq, Default, Zeroize)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),

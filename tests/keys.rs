@@ -66,6 +66,19 @@ fn test_zeroize() {
 }
 
 #[test]
+fn zeroize_var_gen_secret_key() {
+    use zeroize::Zeroize;
+
+    let mut sk = SecretKeyVarGen::new(
+        JubJubScalar::from(42u64),
+        dusk_jubjub::GENERATOR_EXTENDED,
+    );
+    sk.zeroize();
+
+    assert_eq!(sk, SecretKeyVarGen::default());
+}
+
+#[test]
 fn debug_redacts_secret_keys() {
     let sk = SecretKey::from(JubJubScalar::from(42u64));
     let sk_var_gen = SecretKeyVarGen::new(
