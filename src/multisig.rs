@@ -84,7 +84,8 @@
 //! let z_vec = vec![z_1, z_2];
 //!
 //! // A signer combines all the shares into a signature `sig`
-//! let sig = multisig::combine(&z_vec, &pk_vec, &R_vec, &S_vec, &message);
+//! let sig = multisig::combine(&z_vec, &pk_vec, &R_vec, &S_vec, &message)
+//!     .expect("Multisig combination shouldn't fail");
 //!
 //! // Anyone can verify using the delinearized aggregate public key
 //! let pk = multisig::aggregate_pk(&pk_vec);
@@ -267,20 +268,33 @@ pub fn sign_round_2(
 ///
 /// ## Returns
 ///
-/// Returns a new signature [`JubJubScalar`]
+/// Returns a new [`Signature`] wrapped in [`Ok`] on success.
+///
+/// ## Errors
+///
+/// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
+/// empty or do not have equal lengths.
 pub fn combine(
     z_vec: &[JubJubScalar],
     pk_vec: &[PublicKey],
     R_vec: &[JubJubExtended],
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
-) -> Signature {
+) -> Result<Signature, Error> {
+    if z_vec.is_empty()
+        || z_vec.len() != pk_vec.len()
+        || pk_vec.len() != R_vec.len()
+        || R_vec.len() != S_vec.len()
+    {
+        return Err(Error::InvalidMultisigTranscript);
+    }
+
     let (_a, _c, RSa) = multisig_common(pk_vec, R_vec, S_vec, msg);
 
     // Sum all the shares u = z_1 + z_2 + ... + z_n for `n` signers
     let u = z_vec.iter().sum();
 
-    Signature::new(u, RSa)
+    Ok(Signature::new(u, RSa))
 }
 
 /// Computes the delinearization coefficient for a signer's public key

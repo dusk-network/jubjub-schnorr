@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Redact secret scalar material from `SecretKey` and `SecretKeyVarGen` debug
   output [#52]
+- Change `multisig::combine` to return a `Result` [#58]
 - Replace reusable raw multisignature nonce scalars with an opaque,
   zeroizing, one-shot state consumed by `sign_round_2`; require `R_vec` and
   `S_vec` to be index-aligned with `pk_vec`, with the signer's key appearing
@@ -43,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject empty or mismatched participant vectors in `multisig::combine` [#58]
 - Check that reusing a consumed `MultisigNonce` emits E0382 [#60]
 - Zeroize `SecretKey` when converting it into `SecretKeyVarGen` [#55]
 
@@ -130,6 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#58]: https://github.com/dusk-network/jubjub-schnorr/issues/58
 [#60]: https://github.com/dusk-network/jubjub-schnorr/issues/60
 [#54]: https://github.com/dusk-network/jubjub-schnorr/issues/54
 [#55]: https://github.com/dusk-network/jubjub-schnorr/issues/55
