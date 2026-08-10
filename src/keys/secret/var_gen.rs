@@ -4,6 +4,8 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use core::fmt;
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error, Serializable};
 use dusk_jubjub::{
@@ -67,7 +69,7 @@ impl SecretKey {
 /// let sk_var_gen = SecretKeyVarGen::random(&mut rng);
 /// ```
 #[allow(non_snake_case)]
-#[derive(Clone, Copy, PartialEq, Debug, Default, Zeroize)]
+#[derive(Clone, Copy, PartialEq, Default, Zeroize)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
@@ -76,6 +78,12 @@ impl SecretKey {
 pub struct SecretKeyVarGen {
     sk: JubJubScalar,
     generator: JubJubExtended,
+}
+
+impl fmt::Debug for SecretKeyVarGen {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("SecretKeyVarGen(REDACTED)")
+    }
 }
 
 impl Serializable<64> for SecretKeyVarGen {
