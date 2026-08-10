@@ -11,6 +11,8 @@
 //! Schnorr signatures, supporting both single and double signature schemes, as
 //! well as signatures with variable generators.
 
+use core::fmt;
+
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{Error, Serializable};
 use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
@@ -52,13 +54,19 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// sk.zeroize();
 /// ```
 #[allow(non_snake_case)]
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Zeroize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Zeroize)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
     archive_attr(derive(bytecheck::CheckBytes))
 )]
 pub struct SecretKey(pub(crate) JubJubScalar);
+
+impl fmt::Debug for SecretKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("SecretKey(REDACTED)")
+    }
+}
 
 impl From<JubJubScalar> for SecretKey {
     fn from(s: JubJubScalar) -> SecretKey {
