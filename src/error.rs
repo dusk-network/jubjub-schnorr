@@ -19,6 +19,8 @@ pub enum Error {
     InvalidPoint,
     /// Error variants for the multisignature scheme
     DuplicatedNonce,
+    /// Structurally invalid multisignature transcript
+    InvalidMultisigTranscript,
 }
 
 impl From<DuskBytesError> for Error {
@@ -39,6 +41,9 @@ impl fmt::Display for Error {
             }
             Self::DuplicatedNonce => {
                 write!(f, "Duplicated Nonce in multi-sig")
+            }
+            Self::InvalidMultisigTranscript => {
+                write!(f, "Invalid multi-sig transcript")
             }
         }
     }

@@ -52,8 +52,8 @@
 //! let pk_vec = vec![pk_1, pk_2];
 //!
 //! // First round: all signers compute the following elements
-//! let (r_1, s_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
-//! let (r_2, s_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
+//! let (nonce_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
+//! let (nonce_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
 //!
 //! // All signers share `R_vec` and `S_vec` with all the other signers
 //! let R_vec = vec![R_1, R_2];
@@ -62,8 +62,7 @@
 //! // Second round: all the signers compute their share `z`
 //! let z_1 = multisig::sign_round_2(
 //!     &sk_1,
-//!     &r_1,
-//!     &s_1,
+//!     nonce_1,
 //!     &pk_vec.clone(),
 //!     &R_vec.clone(),
 //!     &S_vec.clone(),
@@ -72,8 +71,7 @@
 //! .expect("Multisig Round 2 shouldn't fail");
 //! let z_2 = multisig::sign_round_2(
 //!     &sk_2,
-//!     &r_2,
-//!     &s_2,
+//!     nonce_2,
 //!     &pk_vec.clone(),
 //!     &R_vec.clone(),
 //!     &S_vec.clone(),
@@ -100,8 +98,45 @@ use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{GENERATOR_EXTENDED, JubJubExtended, JubJubScalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
+use zeroize::Zeroize;
 
 use crate::{Error, PublicKey, SecretKey, Signature};
+
+/// Secret nonce state produced by [`sign_round_1`] and consumed by
+/// [`sign_round_2`].
+///
+/// The state deliberately implements neither [`Clone`] nor [`Copy`]. Its
+/// scalar fields owned by this state are zeroized whenever it is consumed or
+/// dropped. This does not guarantee clearing transient copies created during
+/// scalar arithmetic.
+///
+/// A nonce cannot be submitted to round two twice:
+///
+/// ```compile_fail,E0382
+/// use dusk_bls12_381::BlsScalar;
+/// use jubjub_schnorr::{PublicKey, SecretKey, multisig};
+/// use rand::{SeedableRng, rngs::StdRng};
+///
+/// let mut rng = StdRng::seed_from_u64(7);
+/// let sk = SecretKey::random(&mut rng);
+/// let pk = PublicKey::from(&sk);
+/// let message = BlsScalar::from(11u64);
+/// let (nonce, r, s) = multisig::sign_round_1(&mut rng);
+///
+/// let _ = multisig::sign_round_2(&sk, nonce, &[pk], &[r], &[s], &message);
+/// let _ = multisig::sign_round_2(&sk, nonce, &[pk], &[r], &[s], &message);
+/// ```
+#[derive(Zeroize)]
+pub struct MultisigNonce {
+    r: JubJubScalar,
+    s: JubJubScalar,
+}
+
+impl Drop for MultisigNonce {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
 
 /// Computes the delinearized aggregate public key for a set of signers.
 ///
@@ -132,11 +167,11 @@ pub fn aggregate_pk(pk_vec: &[PublicKey]) -> PublicKey {
 ///
 /// ## Returns
 ///
-/// Returns two [`JubJubScalar`] being the scalars (r, s), and
-/// two [`JubJubExtended`] being the points (R, S)
+/// Returns an opaque one-shot [`MultisigNonce`] and the public commitment
+/// points `(R, S)`.
 pub fn sign_round_1<R>(
     mut rng: &mut R,
-) -> (JubJubScalar, JubJubScalar, JubJubExtended, JubJubExtended)
+) -> (MultisigNonce, JubJubExtended, JubJubExtended)
 where
     R: RngCore + CryptoRng,
 {
@@ -148,7 +183,7 @@ where
     let R = GENERATOR_EXTENDED * r;
     let S = GENERATOR_EXTENDED * s;
 
-    (r, s, R, S)
+    (MultisigNonce { r, s }, R, S)
 }
 
 /// Performs the second round to sign a message using the
@@ -157,25 +192,52 @@ where
 /// ## Parameters
 ///
 /// - `sk`: Reference to the secret key.
-/// - `r`: Random value.
-/// - `s`: Random value.
-/// - `pk_vec`: Vector of public keys.
-/// - `R_vec`: Vector of R values.
-/// - `S_vec`: Vector of S values.
+/// - `nonce`: One-shot secret nonce state returned by [`sign_round_1`].
+/// - `pk_vec`: Ordered vector of public keys; the signer's key must occur
+///   exactly once.
+/// - `R_vec`: Vector of R values, index-aligned with `pk_vec`.
+/// - `S_vec`: Vector of S values, index-aligned with `pk_vec`.
 /// - `msg`: Message to sign.
 ///
 /// ## Returns
 ///
 /// Returns a [`JubJubScalar`] being the signature share 'z'
+///
+/// ## Errors
+///
+/// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors do
+/// not have equal lengths, the signer key does not occur exactly once in the
+/// key list, or this state does not match the signer's commitment slot. Returns
+/// [`Error::DuplicatedNonce`] if any two participants supplied the same `R` or
+/// `S` commitment.
 pub fn sign_round_2(
     sk: &SecretKey,
-    r: &JubJubScalar,
-    s: &JubJubScalar,
+    nonce: MultisigNonce,
     pk_vec: &[PublicKey],
     R_vec: &[JubJubExtended],
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
 ) -> Result<JubJubScalar, Error> {
+    if pk_vec.len() != R_vec.len() || R_vec.len() != S_vec.len() {
+        return Err(Error::InvalidMultisigTranscript);
+    }
+
+    let signer_pk = PublicKey::from(&*sk);
+    let mut signer_indices = pk_vec
+        .iter()
+        .enumerate()
+        .filter(|(_, pk)| **pk == signer_pk)
+        .map(|(index, _)| index);
+    let signer_index = signer_indices
+        .next()
+        .ok_or(Error::InvalidMultisigTranscript)?;
+    if signer_indices.next().is_some()
+        || R_vec[signer_index] != GENERATOR_EXTENDED * nonce.r
+        || S_vec[signer_index] != GENERATOR_EXTENDED * nonce.s
+    {
+        return Err(Error::InvalidMultisigTranscript);
+    }
+
     // Check if (R_i == R_j) || (S_i == S_j) for any i != j
     // and return error if so
     for i in 0..R_vec.len() {
@@ -186,12 +248,11 @@ pub fn sign_round_2(
         }
     }
 
-    let signer_pk = PublicKey::from(&*sk);
     let d_i = delinearization_coeff(&signer_pk, pk_vec);
     let (a, c, _RSa) = multisig_common(pk_vec, R_vec, S_vec, msg);
 
     // Compute the share z = r + s * a - c * d_i * sk
-    Ok(r + (s * a) - (c * d_i * sk.as_ref()))
+    Ok(nonce.r + (nonce.s * a) - (c * d_i * sk.as_ref()))
 }
 
 /// Combines all the multisignature shares `z_vec`.
@@ -305,4 +366,25 @@ fn multisig_common(
     )[0];
 
     (a, c, RSa)
+}
+
+#[cfg(test)]
+mod tests {
+    use dusk_jubjub::JubJubScalar;
+    use zeroize::Zeroize;
+
+    use super::MultisigNonce;
+
+    #[test]
+    fn nonce_state_zeroizes_both_scalars() {
+        let mut nonce = MultisigNonce {
+            r: JubJubScalar::from(41u64),
+            s: JubJubScalar::from(43u64),
+        };
+
+        nonce.zeroize();
+
+        assert_eq!(nonce.r, JubJubScalar::zero());
+        assert_eq!(nonce.s, JubJubScalar::zero());
+    }
 }
