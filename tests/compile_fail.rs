@@ -17,3 +17,21 @@ fn multisig_nonce_cannot_be_cloned() {
     let tests = trybuild::TestCases::new();
     tests.compile_fail("tests/ui/multisig_nonce_not_clone.rs");
 }
+
+#[test]
+fn secret_key_cannot_be_ordered() {
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/secret_key_not_partial_ord.rs");
+}
+
+#[test]
+fn secret_key_cannot_be_copied() {
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/secret_key_not_copy.rs");
+}
+
+#[test]
+fn variable_generator_secret_key_cannot_be_copied() {
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/secret_key_var_gen_not_copy.rs");
+}

@@ -55,7 +55,7 @@ impl SecretKey {
 ///
 /// `SecretKeyVarGen` cannot be copied implicitly:
 ///
-/// ```compile_fail
+/// ```compile_fail,E0277
 /// use jubjub_schnorr::SecretKeyVarGen;
 ///
 /// fn requires_copy<T: Copy>() {}
