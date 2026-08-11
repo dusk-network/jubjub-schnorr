@@ -8,7 +8,7 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
+use dusk_jubjub::{GENERATOR_EXTENDED, JubJubExtended, JubJubScalar};
 use ff::Field;
 use jubjub_schnorr::{Error, PublicKey, SecretKey, Signature, multisig};
 use rand::SeedableRng;
@@ -80,6 +80,164 @@ fn sign_verify() {
 
     // We test `to_from_bytes``
     assert_eq!(sig, Signature::from_bytes(&sig.to_bytes()).unwrap());
+}
+
+fn valid_three_party_transcript() -> (
+    BlsScalar,
+    Vec<PublicKey>,
+    Vec<JubJubExtended>,
+    Vec<JubJubExtended>,
+    Vec<JubJubScalar>,
+) {
+    let mut rng = StdRng::seed_from_u64(0x6573);
+    let sk_vec: Vec<_> = (0..3).map(|_| SecretKey::random(&mut rng)).collect();
+    let pk_vec: Vec<_> = sk_vec.iter().map(PublicKey::from).collect();
+    let message = BlsScalar::random(&mut rng);
+    let rounds: Vec<_> =
+        (0..3).map(|_| multisig::sign_round_1(&mut rng)).collect();
+    let r_vec: Vec<_> = rounds.iter().map(|(_, r, _)| *r).collect();
+    let s_vec: Vec<_> = rounds.iter().map(|(_, _, s)| *s).collect();
+    let z_vec = sk_vec
+        .iter()
+        .zip(rounds)
+        .map(|(sk, (nonce, _, _))| {
+            multisig::sign_round_2(sk, nonce, &pk_vec, &r_vec, &s_vec, &message)
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .expect("valid transcript should produce every share");
+
+    (message, pk_vec, r_vec, s_vec, z_vec)
+}
+
+#[test]
+fn verifies_every_valid_share_before_aggregation() {
+    let (message, pk_vec, r_vec, s_vec, z_vec) = valid_three_party_transcript();
+
+    for (participant_index, share) in z_vec.iter().enumerate() {
+        assert_eq!(
+            multisig::verify_share(
+                share,
+                participant_index,
+                &pk_vec,
+                &r_vec,
+                &s_vec,
+                &message,
+            ),
+            Ok(())
+        );
+    }
+
+    let signature =
+        multisig::combine(&z_vec, &pk_vec, &r_vec, &s_vec, &message)
+            .expect("valid shares should aggregate");
+    assert!(
+        multisig::aggregate_pk(&pk_vec)
+            .verify(&signature, message)
+            .is_ok()
+    );
+}
+
+#[test]
+fn rejects_a_malformed_share_in_every_participant_slot() {
+    let (message, pk_vec, r_vec, s_vec, z_vec) = valid_three_party_transcript();
+
+    for participant_index in 0..z_vec.len() {
+        let mut malformed_shares = z_vec.clone();
+        malformed_shares[participant_index] += JubJubScalar::from(1u64);
+
+        assert_eq!(
+            multisig::verify_share(
+                &malformed_shares[participant_index],
+                participant_index,
+                &pk_vec,
+                &r_vec,
+                &s_vec,
+                &message,
+            ),
+            Err(Error::InvalidMultisigShare(participant_index))
+        );
+        assert_eq!(
+            multisig::combine(
+                &malformed_shares,
+                &pk_vec,
+                &r_vec,
+                &s_vec,
+                &message,
+            ),
+            Err(Error::InvalidMultisigShare(participant_index))
+        );
+    }
+}
+
+#[test]
+fn verify_share_rejects_an_invalid_participant_slot() {
+    let (message, pk_vec, r_vec, s_vec, z_vec) = valid_three_party_transcript();
+
+    assert_eq!(
+        multisig::verify_share(
+            &z_vec[0],
+            pk_vec.len(),
+            &pk_vec,
+            &r_vec,
+            &s_vec,
+            &message,
+        ),
+        Err(Error::InvalidMultisigTranscript)
+    );
+}
+
+#[test]
+fn verify_share_rejects_invalid_lengths() {
+    let message = BlsScalar::from(1u64);
+    let share = JubJubScalar::from(1u64);
+    let pk_vec = [PublicKey::from(GENERATOR_EXTENDED); 3];
+    let r_vec = [GENERATOR_EXTENDED; 3];
+    let s_vec = [GENERATOR_EXTENDED; 3];
+
+    for (pk_len, r_len, s_len) in [
+        (0, 0, 0),
+        (1, 2, 2),
+        (2, 1, 2),
+        (2, 2, 1),
+        (3, 2, 2),
+        (2, 3, 2),
+        (2, 2, 3),
+    ] {
+        assert_eq!(
+            multisig::verify_share(
+                &share,
+                0,
+                &pk_vec[..pk_len],
+                &r_vec[..r_len],
+                &s_vec[..s_len],
+                &message,
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+    }
+}
+
+#[test]
+fn verify_share_rejects_a_share_from_another_slot() {
+    let (message, pk_vec, r_vec, s_vec, z_vec) = valid_three_party_transcript();
+
+    assert_eq!(
+        multisig::verify_share(&z_vec[0], 1, &pk_vec, &r_vec, &s_vec, &message,),
+        Err(Error::InvalidMultisigShare(1))
+    );
+}
+
+#[test]
+fn combine_reports_the_first_invalid_share() {
+    let (message, pk_vec, r_vec, s_vec, mut z_vec) =
+        valid_three_party_transcript();
+    z_vec[2] += JubJubScalar::from(1u64);
+    z_vec[0] += JubJubScalar::from(1u64);
+
+    assert_eq!(
+        multisig::combine(&z_vec, &pk_vec, &r_vec, &s_vec, &message),
+        Err(Error::InvalidMultisigShare(0))
+    );
 }
 
 #[test]
