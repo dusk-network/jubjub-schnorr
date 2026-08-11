@@ -40,7 +40,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 /// `SecretKey` deliberately does not implement ordering because ordering its
 /// secret scalar would require variable-time comparisons.
 ///
-/// ```compile_fail
+/// ```compile_fail,E0277
 /// use jubjub_schnorr::SecretKey;
 ///
 /// fn requires_partial_ord<T: PartialOrd>() {}
