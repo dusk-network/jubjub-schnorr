@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the one-shot `MultisigNonce` state [#53]
 - Add `Error::InvalidMultisigTranscript` for malformed multisignature inputs
   [#53]
+- Add `Error::InvalidMultisigShare` for invalid multisignature shares [#65]
+- Add `multisig::verify_share` for validating a participant's signature share
+  before aggregation [#65]
 
 ### Removed
 
@@ -26,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redact secret scalar material from `SecretKey` and `SecretKeyVarGen` debug
   output [#52]
 - Change `multisig::combine` to return a `Result` [#58]
+- Change `multisig::combine` to reject invalid shares before aggregation [#65]
 - Replace reusable raw multisignature nonce scalars with an opaque,
   zeroizing, one-shot state consumed by `sign_round_2`; require `R_vec` and
   `S_vec` to be index-aligned with `pk_vec`, with the signer's key appearing
@@ -137,6 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- ISSUES -->
 [#63]: https://github.com/dusk-network/jubjub-schnorr/issues/63
 [#64]: https://github.com/dusk-network/jubjub-schnorr/issues/64
+[#65]: https://github.com/dusk-network/jubjub-schnorr/issues/65
 [#58]: https://github.com/dusk-network/jubjub-schnorr/issues/58
 [#60]: https://github.com/dusk-network/jubjub-schnorr/issues/60
 [#54]: https://github.com/dusk-network/jubjub-schnorr/issues/54

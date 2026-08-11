@@ -21,6 +21,8 @@ pub enum Error {
     DuplicatedNonce,
     /// Structurally invalid multisignature transcript
     InvalidMultisigTranscript,
+    /// Invalid multisignature share at the participant slot
+    InvalidMultisigShare(usize),
 }
 
 impl From<DuskBytesError> for Error {
@@ -44,6 +46,9 @@ impl fmt::Display for Error {
             }
             Self::InvalidMultisigTranscript => {
                 write!(f, "Invalid multi-sig transcript")
+            }
+            Self::InvalidMultisigShare(index) => {
+                write!(f, "Invalid multi-sig share at participant slot {index}")
             }
         }
     }

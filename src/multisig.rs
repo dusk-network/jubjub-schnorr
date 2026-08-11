@@ -94,6 +94,7 @@
 
 extern crate alloc;
 use alloc::vec;
+use alloc::vec::Vec;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{GENERATOR_EXTENDED, JubJubExtended, JubJubScalar};
@@ -249,11 +250,68 @@ pub fn sign_round_2(
         }
     }
 
-    let d_i = delinearization_coeff(&signer_pk, pk_vec);
-    let (a, c, _RSa) = multisig_common(pk_vec, R_vec, S_vec, msg);
+    let coefficients = multisig_common(pk_vec, R_vec, S_vec, msg);
+    let d_i = coefficients.delinearization[signer_index];
 
     // Compute the share z = r + s * a - c * d_i * sk
-    Ok(nonce.r + (nonce.s * a) - (c * d_i * sk.as_ref()))
+    Ok(nonce.r + (nonce.s * coefficients.a)
+        - (coefficients.c * d_i * sk.as_ref()))
+}
+
+/// Verifies one multisignature share against its participant slot.
+///
+/// The verification derives the transcript coefficients from the full,
+/// ordered public-key and nonce-commitment vectors, then checks:
+///
+/// ```text
+/// z_i * G + c * d_i * pk_i == R_i + a * S_i
+/// ```
+///
+/// Here `a` binds all participant commitments, `c` is the aggregate Schnorr
+/// challenge, and `d_i` delinearizes the participant public key.
+///
+/// ## Parameters
+///
+/// - `share`: Signature share to verify.
+/// - `participant_index`: Slot corresponding to the share in every transcript
+///   vector.
+/// - `pk_vec`: Ordered vector of participant public keys.
+/// - `R_vec`: Vector of R commitments, index-aligned with `pk_vec`.
+/// - `S_vec`: Vector of S commitments, index-aligned with `pk_vec`.
+/// - `msg`: Signed message.
+///
+/// ## Errors
+///
+/// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
+/// empty, have unequal lengths, or do not contain `participant_index`. Returns
+/// [`Error::InvalidMultisigShare`] with `participant_index` if the share does
+/// not satisfy its verification equation.
+#[allow(non_snake_case)]
+pub fn verify_share(
+    share: &JubJubScalar,
+    participant_index: usize,
+    pk_vec: &[PublicKey],
+    R_vec: &[JubJubExtended],
+    S_vec: &[JubJubExtended],
+    msg: &BlsScalar,
+) -> Result<(), Error> {
+    if pk_vec.is_empty()
+        || pk_vec.len() != R_vec.len()
+        || R_vec.len() != S_vec.len()
+        || participant_index >= pk_vec.len()
+    {
+        return Err(Error::InvalidMultisigTranscript);
+    }
+
+    let coefficients = multisig_common(pk_vec, R_vec, S_vec, msg);
+    verify_share_with_coefficients(
+        share,
+        participant_index,
+        pk_vec,
+        R_vec,
+        S_vec,
+        &coefficients,
+    )
 }
 
 /// Combines all the multisignature shares `z_vec`.
@@ -273,7 +331,10 @@ pub fn sign_round_2(
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
-/// empty or do not have equal lengths.
+/// empty or do not have equal lengths. Returns
+/// [`Error::InvalidMultisigShare`] with the participant slot of the first share
+/// that fails verification. No aggregate signature is returned when a share is
+/// invalid.
 pub fn combine(
     z_vec: &[JubJubScalar],
     pk_vec: &[PublicKey],
@@ -289,12 +350,46 @@ pub fn combine(
         return Err(Error::InvalidMultisigTranscript);
     }
 
-    let (_a, _c, RSa) = multisig_common(pk_vec, R_vec, S_vec, msg);
+    let coefficients = multisig_common(pk_vec, R_vec, S_vec, msg);
+
+    for (participant_index, share) in z_vec.iter().enumerate() {
+        verify_share_with_coefficients(
+            share,
+            participant_index,
+            pk_vec,
+            R_vec,
+            S_vec,
+            &coefficients,
+        )?;
+    }
 
     // Sum all the shares u = z_1 + z_2 + ... + z_n for `n` signers
     let u = z_vec.iter().sum();
 
-    Ok(Signature::new(u, RSa))
+    Ok(Signature::new(u, coefficients.aggregate_commitment))
+}
+
+fn verify_share_with_coefficients(
+    share: &JubJubScalar,
+    participant_index: usize,
+    pk_vec: &[PublicKey],
+    r_vec: &[JubJubExtended],
+    s_vec: &[JubJubExtended],
+    coefficients: &MultisigCoefficients,
+) -> Result<(), Error> {
+    let pk_i = &pk_vec[participant_index];
+    let r_i = &r_vec[participant_index];
+    let s_i = &s_vec[participant_index];
+    let d_i = coefficients.delinearization[participant_index];
+    let response =
+        (GENERATOR_EXTENDED * share) + (pk_i.as_ref() * (coefficients.c * d_i));
+    let commitment = *r_i + (*s_i * coefficients.a);
+
+    if response != commitment {
+        return Err(Error::InvalidMultisigShare(participant_index));
+    }
+
+    Ok(())
 }
 
 /// Computes the delinearization coefficient for a signer's public key
@@ -319,6 +414,13 @@ fn delinearization_coeff(
     Hash::digest_truncated(Domain::Other, &preimage)[0]
 }
 
+struct MultisigCoefficients {
+    delinearization: Vec<JubJubScalar>,
+    a: JubJubScalar,
+    c: JubJubScalar,
+    aggregate_commitment: JubJubExtended,
+}
+
 /// Performs some common operations required in different parts
 /// of the multisignature scheme
 fn multisig_common(
@@ -326,14 +428,16 @@ fn multisig_common(
     R_vec: &[JubJubExtended],
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
-) -> (JubJubScalar, JubJubScalar, JubJubExtended) {
+) -> MultisigCoefficients {
     use dusk_poseidon::{Domain, Hash};
 
     // Compute the delinearized aggregate key
     // pk = d_1 * pk_1 + d_2 * pk_2 + ... + d_n * pk_n
+    let mut delinearization = Vec::with_capacity(pk_vec.len());
     let mut pk = JubJubExtended::default();
     for pk_it in pk_vec {
         let d = delinearization_coeff(pk_it, pk_vec);
+        delinearization.push(d);
         pk += pk_it.as_ref() * d;
     }
 
@@ -379,7 +483,12 @@ fn multisig_common(
         ],
     )[0];
 
-    (a, c, RSa)
+    MultisigCoefficients {
+        delinearization,
+        a,
+        c,
+        aggregate_commitment: RSa,
+    }
 }
 
 #[cfg(test)]
