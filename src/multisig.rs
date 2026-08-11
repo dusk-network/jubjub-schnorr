@@ -152,12 +152,7 @@ impl Drop for MultisigNonce {
 ///
 /// Use this to compute the verification key for a multisignature.
 pub fn aggregate_pk(pk_vec: &[PublicKey]) -> PublicKey {
-    let mut pk_agg = JubJubExtended::default();
-    for pk in pk_vec {
-        let d = delinearization_coeff(pk, pk_vec);
-        pk_agg += pk.as_ref() * d;
-    }
-    PublicKey::from(pk_agg)
+    PublicKey::from(aggregate_key(pk_vec).point)
 }
 
 /// Performs the first round to sign a message using the
@@ -251,7 +246,7 @@ pub fn sign_round_2(
     }
 
     let coefficients = multisig_common(pk_vec, R_vec, S_vec, msg);
-    let d_i = coefficients.delinearization[signer_index];
+    let d_i = coefficients.aggregate_key.delinearization[signer_index];
 
     // Compute the share z = r + s * a - c * d_i * sk
     Ok(nonce.r + (nonce.s * coefficients.a)
@@ -286,7 +281,6 @@ pub fn sign_round_2(
 /// empty, have unequal lengths, or do not contain `participant_index`. Returns
 /// [`Error::InvalidMultisigShare`] with `participant_index` if the share does
 /// not satisfy its verification equation.
-#[allow(non_snake_case)]
 pub fn verify_share(
     share: &JubJubScalar,
     participant_index: usize,
@@ -380,7 +374,7 @@ fn verify_share_with_coefficients(
     let pk_i = &pk_vec[participant_index];
     let r_i = &r_vec[participant_index];
     let s_i = &s_vec[participant_index];
-    let d_i = coefficients.delinearization[participant_index];
+    let d_i = coefficients.aggregate_key.delinearization[participant_index];
     let response =
         (GENERATOR_EXTENDED * share) + (pk_i.as_ref() * (coefficients.c * d_i));
     let commitment = *r_i + (*s_i * coefficients.a);
@@ -414,8 +408,28 @@ fn delinearization_coeff(
     Hash::digest_truncated(Domain::Other, &preimage)[0]
 }
 
-struct MultisigCoefficients {
+struct AggregateKey {
     delinearization: Vec<JubJubScalar>,
+    point: JubJubExtended,
+}
+
+fn aggregate_key(pk_vec: &[PublicKey]) -> AggregateKey {
+    let mut delinearization = Vec::with_capacity(pk_vec.len());
+    let mut point = JubJubExtended::default();
+    for pk in pk_vec {
+        let d = delinearization_coeff(pk, pk_vec);
+        delinearization.push(d);
+        point += pk.as_ref() * d;
+    }
+
+    AggregateKey {
+        delinearization,
+        point,
+    }
+}
+
+struct MultisigCoefficients {
+    aggregate_key: AggregateKey,
     a: JubJubScalar,
     c: JubJubScalar,
     aggregate_commitment: JubJubExtended,
@@ -433,19 +447,13 @@ fn multisig_common(
 
     // Compute the delinearized aggregate key
     // pk = d_1 * pk_1 + d_2 * pk_2 + ... + d_n * pk_n
-    let mut delinearization = Vec::with_capacity(pk_vec.len());
-    let mut pk = JubJubExtended::default();
-    for pk_it in pk_vec {
-        let d = delinearization_coeff(pk_it, pk_vec);
-        delinearization.push(d);
-        pk += pk_it.as_ref() * d;
-    }
+    let aggregate_key = aggregate_key(pk_vec);
 
     // Compute the hash
     // a = H(pk || m || R_1 || S_1 || R_2 || S_2 || ... || R_n || S_n)
     // for `n` signers
     let mut preimage = vec![];
-    let pk_coordinates = pk.to_hash_inputs();
+    let pk_coordinates = aggregate_key.point.to_hash_inputs();
 
     preimage.push(pk_coordinates[0]);
     preimage.push(pk_coordinates[1]);
@@ -484,7 +492,7 @@ fn multisig_common(
     )[0];
 
     MultisigCoefficients {
-        delinearization,
+        aggregate_key,
         a,
         c,
         aggregate_commitment: RSa,
@@ -493,10 +501,40 @@ fn multisig_common(
 
 #[cfg(test)]
 mod tests {
-    use dusk_jubjub::JubJubScalar;
+    use dusk_bls12_381::BlsScalar;
+    use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
     use zeroize::Zeroize;
 
-    use super::MultisigNonce;
+    use super::{
+        MultisigNonce, aggregate_pk, delinearization_coeff, multisig_common,
+    };
+    use crate::PublicKey;
+
+    #[test]
+    fn public_aggregate_key_matches_internal_transcript_key() {
+        let point =
+            |scalar: u64| GENERATOR_EXTENDED * JubJubScalar::from(scalar);
+        let pk_vec = [3, 5, 7].map(|scalar| PublicKey::from(point(scalar)));
+        let r_vec = [11, 13, 17].map(point);
+        let s_vec = [19, 23, 29].map(point);
+        let message = BlsScalar::from(31u64);
+
+        let transcript = multisig_common(&pk_vec, &r_vec, &s_vec, &message);
+
+        assert_eq!(
+            aggregate_pk(&pk_vec).as_ref(),
+            &transcript.aggregate_key.point
+        );
+        assert_eq!(
+            transcript.aggregate_key.delinearization.len(),
+            pk_vec.len()
+        );
+        for (pk_i, d_i) in
+            pk_vec.iter().zip(&transcript.aggregate_key.delinearization)
+        {
+            assert_eq!(*d_i, delinearization_coeff(pk_i, &pk_vec));
+        }
+    }
 
     #[test]
     fn nonce_state_zeroizes_both_scalars() {
