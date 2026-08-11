@@ -144,33 +144,33 @@ fn serde_signature_var_gen() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn serde_wrong_encoded() {
     let wrong_encoded = "\"wrong-encoded\"";
-    let public_key: Result<PublicKey, _> = serde_json::from_str(&wrong_encoded);
+    let public_key: Result<PublicKey, _> = serde_json::from_str(wrong_encoded);
     assert!(public_key.is_err());
 
-    let secret_key: Result<SecretKey, _> = serde_json::from_str(&wrong_encoded);
+    let secret_key: Result<SecretKey, _> = serde_json::from_str(wrong_encoded);
     assert!(secret_key.is_err());
 
-    let signature: Result<Signature, _> = serde_json::from_str(&wrong_encoded);
+    let signature: Result<Signature, _> = serde_json::from_str(wrong_encoded);
     assert!(signature.is_err());
 
     let public_key_double: Result<PublicKeyDouble, _> =
-        serde_json::from_str(&wrong_encoded);
+        serde_json::from_str(wrong_encoded);
     assert!(public_key_double.is_err());
 
     let signature_double: Result<SignatureDouble, _> =
-        serde_json::from_str(&wrong_encoded);
+        serde_json::from_str(wrong_encoded);
     assert!(signature_double.is_err());
 
     let public_key_var_gen: Result<PublicKeyVarGen, _> =
-        serde_json::from_str(&wrong_encoded);
+        serde_json::from_str(wrong_encoded);
     assert!(public_key_var_gen.is_err());
 
     let secret_key_var_gen: Result<SecretKeyVarGen, _> =
-        serde_json::from_str(&wrong_encoded);
+        serde_json::from_str(wrong_encoded);
     assert!(secret_key_var_gen.is_err());
 
     let signature_var_gen: Result<SignatureVarGen, _> =
-        serde_json::from_str(&wrong_encoded);
+        serde_json::from_str(wrong_encoded);
     assert!(signature_var_gen.is_err());
 }
 
@@ -180,33 +180,33 @@ fn serde_too_long_encoded() {
     let length_65_enc = "\"Hovyh2MvKLSnTfv2aKMMD1s7MgzWVCdzKJbbLwzU3kgVmo2JugxpGPASJWVQVXcxUqxtxVrQ63myzLRr1ko6oJvyv\"";
     let length_97_enc = "\"7a5RpCdtr1aaXvaR3AofnEnVRh7kpzyqE8eYJpCBVLKLLpXVeN9UrXGRTZyq2upTVaJT5QnPQwZCGXW1oxrEAzrPvQ4vbWFwiHMJijZMzrPsTjQJFju1H4shrajuqUG4fYFpC\"";
 
-    let public_key: Result<PublicKey, _> = serde_json::from_str(&length_33_enc);
+    let public_key: Result<PublicKey, _> = serde_json::from_str(length_33_enc);
     assert!(public_key.is_err());
 
-    let secret_key: Result<SecretKey, _> = serde_json::from_str(&length_33_enc);
+    let secret_key: Result<SecretKey, _> = serde_json::from_str(length_33_enc);
     assert!(secret_key.is_err());
 
-    let signature: Result<Signature, _> = serde_json::from_str(&length_65_enc);
+    let signature: Result<Signature, _> = serde_json::from_str(length_65_enc);
     assert!(signature.is_err());
 
     let public_key_double: Result<PublicKeyDouble, _> =
-        serde_json::from_str(&length_65_enc);
+        serde_json::from_str(length_65_enc);
     assert!(public_key_double.is_err());
 
     let signature_double: Result<SignatureDouble, _> =
-        serde_json::from_str(&length_97_enc);
+        serde_json::from_str(length_97_enc);
     assert!(signature_double.is_err());
 
     let public_key_var_gen: Result<PublicKeyVarGen, _> =
-        serde_json::from_str(&length_65_enc);
+        serde_json::from_str(length_65_enc);
     assert!(public_key_var_gen.is_err());
 
     let secret_key_var_gen: Result<SecretKeyVarGen, _> =
-        serde_json::from_str(&length_65_enc);
+        serde_json::from_str(length_65_enc);
     assert!(secret_key_var_gen.is_err());
 
     let signature_var_gen: Result<SignatureVarGen, _> =
-        serde_json::from_str(&length_65_enc);
+        serde_json::from_str(length_65_enc);
     assert!(signature_var_gen.is_err());
 }
 
@@ -216,32 +216,32 @@ fn serde_too_short_encoded() {
     let length_63_enc = "\"YrHj6pQ3kRkpELFJK8a8ESdYyXaH9fQeb4pXRNEb8mSxDCrin1bF4uHz9BN13kN15mmH5fxXXSAusfLLGLrjCF\"";
     let length_95_enc = "\"LZXkPWnz5xKxYnyDRZyJvL9vF44oQynzozqRBcpgWA3yZicbaxNeKKJrAMv3eXBbyEvk24mgz9Kg9tck5yEW6k16chN4hDWYUr5gDb9PJJ3YmUqcjG8yPaAuz3cNCE8dHv\"";
 
-    let public_key: Result<PublicKey, _> = serde_json::from_str(&length_31_enc);
+    let public_key: Result<PublicKey, _> = serde_json::from_str(length_31_enc);
     assert!(public_key.is_err());
 
-    let secret_key: Result<SecretKey, _> = serde_json::from_str(&length_31_enc);
+    let secret_key: Result<SecretKey, _> = serde_json::from_str(length_31_enc);
     assert!(secret_key.is_err());
 
-    let signature: Result<Signature, _> = serde_json::from_str(&length_63_enc);
+    let signature: Result<Signature, _> = serde_json::from_str(length_63_enc);
     assert!(signature.is_err());
 
     let public_key_double: Result<PublicKeyDouble, _> =
-        serde_json::from_str(&length_63_enc);
+        serde_json::from_str(length_63_enc);
     assert!(public_key_double.is_err());
 
     let signature_double: Result<SignatureDouble, _> =
-        serde_json::from_str(&length_95_enc);
+        serde_json::from_str(length_95_enc);
     assert!(signature_double.is_err());
 
     let public_key_var_gen: Result<PublicKeyVarGen, _> =
-        serde_json::from_str(&length_63_enc);
+        serde_json::from_str(length_63_enc);
     assert!(public_key_var_gen.is_err());
 
     let secret_key_var_gen: Result<SecretKeyVarGen, _> =
-        serde_json::from_str(&length_63_enc);
+        serde_json::from_str(length_63_enc);
     assert!(secret_key_var_gen.is_err());
 
     let signature_var_gen: Result<SignatureVarGen, _> =
-        serde_json::from_str(&length_63_enc);
+        serde_json::from_str(length_63_enc);
     assert!(signature_var_gen.is_err());
 }

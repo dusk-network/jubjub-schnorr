@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pin the absent secret-key ordering and implicit-copy trait diagnostics [#63]
 - Pin the absent `Copy` trait diagnostic for `SecretKey` [#12]
+- Include all features and targets in Clippy checks [#64]
 - Reject empty or mismatched participant vectors in `multisig::combine` [#58]
 - Check that reusing a consumed `MultisigNonce` emits E0382 [#60]
 - Zeroize `SecretKey` when converting it into `SecretKeyVarGen` [#55]
@@ -135,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#63]: https://github.com/dusk-network/jubjub-schnorr/issues/63
+[#64]: https://github.com/dusk-network/jubjub-schnorr/issues/64
 [#58]: https://github.com/dusk-network/jubjub-schnorr/issues/58
 [#60]: https://github.com/dusk-network/jubjub-schnorr/issues/60
 [#54]: https://github.com/dusk-network/jubjub-schnorr/issues/54

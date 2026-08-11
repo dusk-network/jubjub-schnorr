@@ -10,6 +10,7 @@
 mod error;
 mod keys;
 mod nonce;
+#[allow(non_snake_case)]
 mod signatures;
 
 #[cfg(feature = "zk")]

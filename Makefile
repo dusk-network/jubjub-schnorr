@@ -10,7 +10,7 @@ update-compile-fail: ## Regenerate trybuild stderr; inspect changes before commi
 	@TRYBUILD=overwrite cargo test --test compile_fail --features alloc
 
 clippy: ## Run clippy
-	@cargo clippy --features rkyv/size_32,zk,serde -- -D warnings
+	@cargo clippy --all-features --features rkyv/size_32 --all-targets -- -D warnings
 	@cargo clippy --no-default-features -- -D warnings
 
 cq: ## Run code quality checks (formatting + clippy)

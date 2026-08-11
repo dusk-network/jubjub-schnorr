@@ -223,7 +223,7 @@ pub fn sign_round_2(
         return Err(Error::InvalidMultisigTranscript);
     }
 
-    let signer_pk = PublicKey::from(&*sk);
+    let signer_pk = PublicKey::from(sk);
     let mut signer_indices = pk_vec
         .iter()
         .enumerate()
