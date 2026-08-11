@@ -79,7 +79,7 @@ impl Circuit for SigDoubleCircuit {
 }
 
 fn proof_creation_signature_double(c: &mut Criterion) {
-    let mut rng = &mut StdRng::seed_from_u64(0xbeef);
+    let mut rng = StdRng::seed_from_u64(0xbeef);
 
     // We compile the circuit using the public parameters PP
     let (prover, _verifier) = Compiler::compile::<SigDoubleCircuit>(&PP, LABEL)

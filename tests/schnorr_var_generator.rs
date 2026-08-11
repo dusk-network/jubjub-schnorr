@@ -116,8 +116,7 @@ fn cross_generator_forgery_fails() {
 fn sign_verify_identity_fails() {
     let mut rng = StdRng::seed_from_u64(0xbeef);
     let msg = BlsScalar::random(&mut rng);
-    let sk =
-        SecretKeyVarGen::new(JubJubScalar::zero().into(), GENERATOR_EXTENDED);
+    let sk = SecretKeyVarGen::new(JubJubScalar::zero(), GENERATOR_EXTENDED);
     let pk = PublicKeyVarGen::from(&sk);
     let sig = sk.sign(&mut rng, msg);
 
