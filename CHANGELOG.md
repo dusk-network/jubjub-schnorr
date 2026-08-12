@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add known-answer vectors for multisignature transcript compatibility [#71]
 - Add MuSig-style delinearized key aggregation to multisig for
   rogue-key protection, with `aggregate_pk` function for computing
   the verification key
@@ -140,6 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#71]: https://github.com/dusk-network/jubjub-schnorr/issues/71
 [#69]: https://github.com/dusk-network/jubjub-schnorr/issues/69
 [#63]: https://github.com/dusk-network/jubjub-schnorr/issues/63
 [#64]: https://github.com/dusk-network/jubjub-schnorr/issues/64
