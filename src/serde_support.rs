@@ -8,6 +8,7 @@ extern crate alloc;
 
 use alloc::format;
 use alloc::string::String;
+use core::fmt::Debug;
 
 use dusk_bytes::Serializable;
 use serde::de::Error as SerdeError;
@@ -18,13 +19,45 @@ use crate::{
     Signature, SignatureDouble, SignatureVarGen,
 };
 
+fn serialize_base58<T, S, const N: usize>(
+    value: &T,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    T: Serializable<N>,
+    S: Serializer,
+{
+    let encoded = bs58::encode(value.to_bytes()).into_string();
+    serializer.serialize_str(&encoded)
+}
+
+fn deserialize_base58<'de, T, D, const N: usize>(
+    deserializer: D,
+) -> Result<T, D::Error>
+where
+    T: Serializable<N>,
+    T::Error: Debug,
+    D: Deserializer<'de>,
+{
+    let encoded = String::deserialize(deserializer)?;
+    let decoded = bs58::decode(&encoded)
+        .into_vec()
+        .map_err(SerdeError::custom)?;
+    let decoded_len = decoded.len();
+    let byte_length = format!("{N}");
+    let bytes: [u8; N] = decoded.try_into().map_err(|_| {
+        SerdeError::invalid_length(decoded_len, &byte_length.as_str())
+    })?;
+
+    T::from_bytes(&bytes).map_err(|err| SerdeError::custom(format!("{err:?}")))
+}
+
 impl Serialize for PublicKey {
     fn serialize<S: Serializer>(
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_base58::<_, _, 32>(self, serializer)
     }
 }
 
@@ -32,16 +65,7 @@ impl<'de> Deserialize<'de> for PublicKey {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        PublicKey::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_base58::<Self, _, 32>(deserializer)
     }
 }
 
@@ -50,8 +74,7 @@ impl Serialize for SecretKey {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_base58::<_, _, 32>(self, serializer)
     }
 }
 
@@ -59,16 +82,7 @@ impl<'de> Deserialize<'de> for SecretKey {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        SecretKey::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_base58::<Self, _, 32>(deserializer)
     }
 }
 
@@ -77,8 +91,7 @@ impl Serialize for Signature {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_base58::<_, _, 64>(self, serializer)
     }
 }
 
@@ -86,16 +99,7 @@ impl<'de> Deserialize<'de> for Signature {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        Signature::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_base58::<Self, _, 64>(deserializer)
     }
 }
 
@@ -104,8 +108,7 @@ impl Serialize for PublicKeyDouble {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_base58::<_, _, 64>(self, serializer)
     }
 }
 
@@ -113,16 +116,7 @@ impl<'de> Deserialize<'de> for PublicKeyDouble {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        PublicKeyDouble::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_base58::<Self, _, 64>(deserializer)
     }
 }
 
@@ -131,8 +125,7 @@ impl Serialize for SignatureDouble {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_base58::<_, _, 96>(self, serializer)
     }
 }
 
@@ -140,16 +133,7 @@ impl<'de> Deserialize<'de> for SignatureDouble {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        SignatureDouble::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_base58::<Self, _, 96>(deserializer)
     }
 }
 
@@ -158,8 +142,7 @@ impl Serialize for PublicKeyVarGen {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_base58::<_, _, 64>(self, serializer)
     }
 }
 
@@ -167,16 +150,7 @@ impl<'de> Deserialize<'de> for PublicKeyVarGen {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        PublicKeyVarGen::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_base58::<Self, _, 64>(deserializer)
     }
 }
 
@@ -185,8 +159,7 @@ impl Serialize for SecretKeyVarGen {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_base58::<_, _, 64>(self, serializer)
     }
 }
 
@@ -194,16 +167,7 @@ impl<'de> Deserialize<'de> for SecretKeyVarGen {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        SecretKeyVarGen::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_base58::<Self, _, 64>(deserializer)
     }
 }
 
@@ -212,8 +176,7 @@ impl Serialize for SignatureVarGen {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let s = bs58::encode(self.to_bytes()).into_string();
-        serializer.serialize_str(&s)
+        serialize_base58::<_, _, 64>(self, serializer)
     }
 }
 
@@ -221,15 +184,6 @@ impl<'de> Deserialize<'de> for SignatureVarGen {
     fn deserialize<D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        let decoded =
-            bs58::decode(&s).into_vec().map_err(SerdeError::custom)?;
-        let decoded_len = decoded.len();
-        let byte_length_str = format!("{}", Self::SIZE);
-        let bytes: [u8; Self::SIZE] = decoded.try_into().map_err(|_| {
-            SerdeError::invalid_length(decoded_len, &byte_length_str.as_str())
-        })?;
-        SignatureVarGen::from_bytes(&bytes)
-            .map_err(|err| SerdeError::custom(format!("{err:?}")))
+        deserialize_base58::<Self, _, 64>(deserializer)
     }
 }
