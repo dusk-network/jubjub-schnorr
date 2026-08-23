@@ -4,6 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use std::sync::LazyLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -15,14 +16,11 @@ use rand::rngs::StdRng;
 
 const CAPACITY: usize = 13;
 
-lazy_static::lazy_static! {
-    pub static ref PP: PublicParameters = {
-        let rng = &mut StdRng::seed_from_u64(2321u64);
+pub static PP: LazyLock<PublicParameters> = LazyLock::new(|| {
+    let rng = &mut StdRng::seed_from_u64(2321u64);
 
-        PublicParameters::setup(1 << CAPACITY, rng)
-            .expect("Failed to generate PP")
-    };
-}
+    PublicParameters::setup(1 << CAPACITY, rng).expect("Failed to generate PP")
+});
 
 static CONSTRAINTS: AtomicUsize = AtomicUsize::new(0);
 static LABEL: &[u8; 12] = b"dusk-network";

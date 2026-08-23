@@ -6,6 +6,8 @@
 
 mod common;
 
+use std::sync::LazyLock;
+
 use dusk_plonk::prelude::{Error as PlonkError, *};
 use ff::Field;
 use jubjub_schnorr::{
@@ -15,14 +17,11 @@ use jubjub_schnorr::{
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-lazy_static::lazy_static! {
-    pub static ref PP: PublicParameters = {
-        let rng = &mut StdRng::seed_from_u64(2321u64);
+pub static PP: LazyLock<PublicParameters> = LazyLock::new(|| {
+    let rng = &mut StdRng::seed_from_u64(2321u64);
 
-        PublicParameters::setup(1 << 13, rng)
-            .expect("Failed to generate PP")
-    };
-}
+    PublicParameters::setup(1 << 13, rng).expect("Failed to generate PP")
+});
 
 const LABEL: &[u8] = b"dusk-network";
 
