@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update `bs58` to 0.5 [#78]
 - Deduplicate multisignature aggregate-key derivation [#69]
 - Redact secret scalar material from `SecretKey` and `SecretKeyVarGen` debug
   output [#52]
@@ -141,6 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#78]: https://github.com/dusk-network/jubjub-schnorr/issues/78
 [#71]: https://github.com/dusk-network/jubjub-schnorr/issues/71
 [#69]: https://github.com/dusk-network/jubjub-schnorr/issues/69
 [#63]: https://github.com/dusk-network/jubjub-schnorr/issues/63
