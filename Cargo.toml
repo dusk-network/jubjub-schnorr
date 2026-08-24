@@ -40,7 +40,6 @@ bs58 = { version = "0.4", default-features = false, optional = true }
 rkyv = { version = "0.7", default-features = false, features = ["size_32"] }
 criterion = "0.3"
 rand = "0.8"
-lazy_static = "1.4"
 serde_json = "1.0"
 trybuild = "1.0"
 
