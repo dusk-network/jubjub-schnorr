@@ -48,16 +48,6 @@ name = "signature"
 harness = false
 required-features = ["zk"]
 
-[[bench]]
-name = "signature_double"
-harness = false
-required-features = ["zk"]
-
-[[bench]]
-name = "signature_var_generator"
-harness = false
-required-features = ["zk"]
-
 [features]
 alloc = []
 zk = ["dusk-plonk", "dusk-poseidon/zk"]
