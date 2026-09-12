@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add opt-in `sign_round_1_hedged` with secret-key and unique-session binding [#59].
 - Add known-answer vectors for multisignature transcript compatibility [#71]
 - Add MuSig-style delinearized key aggregation to multisig for
   rogue-key protection, with `aggregate_pk` function for computing
@@ -53,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Zeroize owned Poseidon nonce-digest buffers before deallocation in all hedged signing variants [#59].
 - Pin the absent secret-key ordering and implicit-copy trait diagnostics [#63]
 - Pin the absent `Copy` trait diagnostic for `SecretKey` [#12]
 - Include all features and targets in Clippy checks [#64]
@@ -144,6 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#59]: https://github.com/dusk-network/jubjub-schnorr/issues/59
 [#81]: https://github.com/dusk-network/jubjub-schnorr/issues/81
 [#79]: https://github.com/dusk-network/jubjub-schnorr/issues/79
 [#78]: https://github.com/dusk-network/jubjub-schnorr/issues/78
