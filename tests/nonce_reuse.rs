@@ -52,6 +52,98 @@ impl RngCore for ConstRng {
 
 impl CryptoRng for ConstRng {}
 
+#[cfg(feature = "alloc")]
+#[test]
+fn multisig_hedging_preserves_verification_and_separates_sessions() {
+    use dusk_jubjub::JubJubAffine;
+    use jubjub_schnorr::multisig;
+
+    let sk = SecretKey::from(JubJubScalar::from(7u64));
+    let other = SecretKey::from(JubJubScalar::from(11u64));
+    let session = core::array::from_fn(|i| i as u8);
+    let (nonce, r, s) =
+        multisig::sign_round_1_hedged(&mut ConstRng(0), &sk, &session);
+    // Independently derived with published Poseidon 0.42.0-rc.0, without
+    // calling the Schnorr implementation: H(0, 7, 3, role, lo128, hi128),
+    // truncated to 250 bits, then multiplied by G and compressed. Session
+    // halves encode bytes 0..15 and 16..31 little-endian. Pin the exact secret
+    // input, not just separation: public-key-only hedging must fail here.
+    assert_eq!(
+        JubJubAffine::from(r).to_bytes(),
+        [
+            0xbb, 0x5c, 0x97, 0x73, 0x5a, 0x41, 0x45, 0xc4, 0xb4, 0x64, 0x38,
+            0x2a, 0x19, 0x3c, 0xef, 0x3a, 0x59, 0x90, 0xab, 0x94, 0x21, 0xab,
+            0xca, 0x98, 0x0d, 0xc5, 0x54, 0xb4, 0xfe, 0x14, 0x1f, 0x24,
+        ]
+    );
+    assert_eq!(
+        JubJubAffine::from(s).to_bytes(),
+        [
+            0x6a, 0x94, 0x31, 0x93, 0x2e, 0xde, 0xd8, 0x93, 0x14, 0xcb, 0x6a,
+            0xfd, 0x63, 0x61, 0xca, 0xaf, 0xd6, 0x5d, 0xc4, 0xe3, 0xd1, 0xda,
+            0x1e, 0x5f, 0xe2, 0x3c, 0xe1, 0x6a, 0x47, 0x6a, 0x51, 0xc5,
+        ]
+    );
+    assert_ne!(r, s);
+    assert_ne!(r, dusk_jubjub::JubJubExtended::identity());
+    assert_ne!(s, dusk_jubjub::JubJubExtended::identity());
+    for index in 0..32 {
+        let mut changed = session;
+        changed[index] ^= 1;
+        let (_, other_r, other_s) =
+            multisig::sign_round_1_hedged(&mut ConstRng(0), &sk, &changed);
+        assert_ne!(r, other_r);
+        assert_ne!(s, other_s);
+    }
+    let (_, other_r, other_s) =
+        multisig::sign_round_1_hedged(&mut ConstRng(0), &other, &session);
+    assert_ne!(r, other_r);
+    assert_ne!(s, other_s);
+    let (_, other_r, other_s) =
+        multisig::sign_round_1_hedged(&mut ConstRng(42), &sk, &session);
+    assert_ne!(r, other_r);
+    assert_ne!(s, other_s);
+
+    // The explicit uniqueness precondition matters: this is NOT safe replay.
+    let (_, repeated_r, repeated_s) =
+        multisig::sign_round_1_hedged(&mut ConstRng(0), &sk, &session);
+    assert_eq!((r, s), (repeated_r, repeated_s));
+
+    let (wrong_key_nonce, wrong_r, wrong_s) =
+        multisig::sign_round_1_hedged(&mut ConstRng(0), &sk, &[9; 32]);
+    assert_eq!(
+        multisig::sign_round_2(
+            &other,
+            wrong_key_nonce,
+            &[PublicKey::from(&other)],
+            &[wrong_r],
+            &[wrong_s],
+            &BlsScalar::from(31u64)
+        ),
+        Err(jubjub_schnorr::Error::InvalidMultisigTranscript)
+    );
+
+    // Mixed old/new signers use exactly the existing round-two transcript.
+    let mut rng = StdRng::seed_from_u64(912);
+    let (other_nonce, other_r, other_s) = multisig::sign_round_1(&mut rng);
+    let keys = [PublicKey::from(&sk), PublicKey::from(&other)];
+    let rs = [r, other_r];
+    let ss = [s, other_s];
+    let msg = BlsScalar::from(31u64);
+    let shares = [
+        multisig::sign_round_2(&sk, nonce, &keys, &rs, &ss, &msg).unwrap(),
+        multisig::sign_round_2(&other, other_nonce, &keys, &rs, &ss, &msg)
+            .unwrap(),
+    ];
+    for (index, share) in shares.iter().enumerate() {
+        multisig::verify_share(share, index, &keys, &rs, &ss, &msg).unwrap();
+    }
+    let signature = multisig::combine(&shares, &keys, &rs, &ss, &msg).unwrap();
+    multisig::aggregate_pk(&keys)
+        .verify(&signature, msg)
+        .unwrap();
+}
+
 /// With a broken RNG, signing two different messages must produce
 /// different nonces (different R values). If R values were the same,
 /// an attacker could recover the secret key.

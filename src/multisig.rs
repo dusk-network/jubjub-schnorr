@@ -97,6 +97,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 use dusk_jubjub::{GENERATOR_EXTENDED, JubJubExtended, JubJubScalar};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
@@ -132,6 +133,8 @@ use crate::{Error, PublicKey, SecretKey, Signature};
 pub struct MultisigNonce {
     r: JubJubScalar,
     s: JubJubScalar,
+    // Legacy round one does not receive a key. Hedged state is key-bound.
+    signer: Option<[u8; 32]>,
 }
 
 impl Drop for MultisigNonce {
@@ -166,6 +169,9 @@ pub fn aggregate_pk(pk_vec: &[PublicKey]) -> PublicKey {
 ///
 /// Returns an opaque one-shot [`MultisigNonce`] and the public commitment
 /// points `(R, S)`.
+///
+/// This compatibility API relies entirely on a functioning cryptographic RNG.
+/// Prefer [`sign_round_1_hedged`] for new signers.
 pub fn sign_round_1<R>(
     mut rng: &mut R,
 ) -> (MultisigNonce, JubJubExtended, JubJubExtended)
@@ -180,7 +186,41 @@ where
     let R = GENERATOR_EXTENDED * r;
     let S = GENERATOR_EXTENDED * s;
 
-    (MultisigNonce { r, s }, R, S)
+    (MultisigNonce { r, s, signer: None }, R, S)
+}
+
+/// Perform round one with secret-key-bound, domain-separated nonces.
+///
+/// `session_id` MUST be unique for every invocation with this signing key,
+/// including retries, aborted sessions and process restarts. Use a durable
+/// counter or an independently unique session identifier; drawing it solely
+/// from the same potentially broken RNG defeats the repeated-RNG protection.
+/// Bind it to the application, ordered signer set and message when available.
+/// When the message is not yet known, uniqueness is still mandatory: unlike
+/// single-party signing, repeating the whole session is NOT safe.
+///
+/// Returns the same one-shot, zeroizing state as [`sign_round_1`]. Round two,
+/// share verification and signature encoding are unchanged; hedged and legacy
+/// participants can share a session. This is not a persistent replay registry.
+pub fn sign_round_1_hedged<R>(
+    rng: &mut R,
+    sk: &SecretKey,
+    session_id: &[u8; 32],
+) -> (MultisigNonce, JubJubExtended, JubJubExtended)
+where
+    R: RngCore + CryptoRng,
+{
+    let [r, s] =
+        crate::nonce::hedged_multisig_nonces(rng, sk.as_ref(), session_id);
+    (
+        MultisigNonce {
+            r,
+            s,
+            signer: Some(PublicKey::from(sk).to_bytes()),
+        },
+        GENERATOR_EXTENDED * r,
+        GENERATOR_EXTENDED * s,
+    )
 }
 
 /// Performs the second round to sign a message using the
@@ -204,7 +244,8 @@ where
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors do
 /// not have equal lengths, the signer key does not occur exactly once in the
-/// key list, or this state does not match the signer's commitment slot. Returns
+/// key list, a hedged nonce was generated for a different key, or this state
+/// does not match the signer's commitment slot. Returns
 /// [`Error::DuplicatedNonce`] if any two participants supplied the same `R` or
 /// `S` commitment.
 pub fn sign_round_2(
@@ -220,6 +261,9 @@ pub fn sign_round_2(
     }
 
     let signer_pk = PublicKey::from(sk);
+    if nonce.signer.is_some_and(|key| key != signer_pk.to_bytes()) {
+        return Err(Error::InvalidMultisigTranscript);
+    }
     let mut signer_indices = pk_vec
         .iter()
         .enumerate()
@@ -716,6 +760,7 @@ mod tests {
                 MultisigNonce {
                     r: r_scalars[index],
                     s: s_scalars[index],
+                    signer: None,
                 },
                 &public_keys,
                 &r_points,
@@ -735,10 +780,41 @@ mod tests {
     }
 
     #[test]
+    fn legacy_rng_key_recovery_control() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+        let sk = SecretKey::from(JubJubScalar::from(7u64));
+        let keys = [PublicKey::from(&sk)];
+        let msg = BlsScalar::from(31u64);
+        // An observer can reproduce the legacy nonces from public RNG output.
+        let (known, _, _) = super::sign_round_1(&mut StdRng::seed_from_u64(59));
+        for hedged in [false, true] {
+            let mut rng = StdRng::seed_from_u64(59);
+            let (nonce, r, s) = if hedged {
+                super::sign_round_1_hedged(&mut rng, &sk, &[1; 32])
+            } else {
+                super::sign_round_1(&mut rng)
+            };
+            let coefficients = multisig_common(&keys, &[r], &[s], &msg);
+            let z = sign_round_2(&sk, nonce, &keys, &[r], &[s], &msg).unwrap();
+            let inverse = (coefficients.c
+                * coefficients.aggregate_key.delinearization[0])
+                .invert()
+                .unwrap();
+            let recovered = (known.r + coefficients.a * known.s - z) * inverse;
+            // Positive control: these exact raw RNG nonces recover the
+            // legacy key. The separate known-answer vector tests the hedge's
+            // secret input; this attack alone cannot establish that binding.
+            assert_eq!(recovered == *sk.as_ref(), !hedged);
+        }
+    }
+
+    #[test]
     fn nonce_state_zeroizes_both_scalars() {
         let mut nonce = MultisigNonce {
             r: JubJubScalar::from(41u64),
             s: JubJubScalar::from(43u64),
+            signer: None,
         };
 
         nonce.zeroize();
