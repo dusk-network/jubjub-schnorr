@@ -12,7 +12,7 @@ use dusk_plonk::prelude::{Error as PlonkError, *};
 use ff::Field;
 use jubjub_schnorr::{
     PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey, SecretKeyVarGen,
-    Signature, SignatureDouble, SignatureVarGen, gadgets,
+    Signature, SignatureDouble, gadgets,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -214,7 +214,9 @@ fn verify_signature_double() {
 //
 #[derive(Debug, Default)]
 struct SignatureVarGenCircuit {
-    signature: SignatureVarGen,
+    // Keep the response as a field witness to test noncanonical inputs.
+    u: BlsScalar,
+    r: JubJubExtended,
     pk_var_gen: PublicKeyVarGen,
     message: BlsScalar,
 }
@@ -228,7 +230,8 @@ impl SignatureVarGenCircuit {
         let pk_var_gen = PublicKeyVarGen::from(&sk);
 
         Self {
-            signature,
+            u: BlsScalar::from(*signature.u()),
+            r: *signature.R(),
             pk_var_gen,
             message,
         }
@@ -243,7 +246,8 @@ impl SignatureVarGenCircuit {
         let pk_var_gen = PublicKeyVarGen::from(&sk_wrong);
 
         Self {
-            signature,
+            u: BlsScalar::from(*signature.u()),
+            r: *signature.R(),
             pk_var_gen,
             message,
         }
@@ -252,8 +256,8 @@ impl SignatureVarGenCircuit {
 
 impl Circuit for SignatureVarGenCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
-        let u = composer.append_witness(*self.signature.u());
-        let r = composer.append_point(self.signature.R());
+        let u = composer.append_witness(self.u);
+        let r = composer.append_point(self.r);
 
         let pk_var_gen = composer.append_point(self.pk_var_gen.public_key());
         let generator = composer.append_point(self.pk_var_gen.generator());
@@ -296,4 +300,33 @@ fn verify_signature_var_gen() {
     prover
         .prove(&mut rng, &circuit)
         .expect_err("Proving invalid circuit shouldn't be possible");
+}
+
+#[test]
+fn verify_signature_var_gen_rejects_noncanonical_response() {
+    let mut rng = StdRng::seed_from_u64(0xcafe);
+    let modulus = BlsScalar::from(-JubJubScalar::one()) + BlsScalar::one();
+    // The alias must fit the multiplier's 252-bit bound, so only the
+    // canonicality check distinguishes it from the valid response.
+    let mut circuit = (0..1024)
+        .map(|_| SignatureVarGenCircuit::valid_random(&mut rng))
+        .find(|circuit| {
+            (circuit.u + modulus).to_bits()[252..]
+                .iter()
+                .all(|bit| *bit == 0)
+        })
+        .expect("A response with a 252-bit alias should be sampled");
+    let (prover, verifier) =
+        Compiler::compile::<SignatureVarGenCircuit>(&PP, LABEL)
+            .expect("Circuit should compile successfully");
+
+    let (proof, inputs) = prover
+        .prove(&mut rng, &circuit)
+        .expect("The canonical response should satisfy the circuit");
+    verifier.verify(&proof, &inputs).unwrap();
+
+    circuit.u += modulus;
+    prover
+        .prove(&mut rng, &circuit)
+        .expect_err("A noncanonical response must not satisfy the circuit");
 }
