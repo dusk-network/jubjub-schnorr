@@ -53,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Constrain variable-generator signature responses to canonical JubJub scalars
+  in `verify_signature_var_gen` [#85].
 - Pin the absent secret-key ordering and implicit-copy trait diagnostics [#63]
 - Pin the absent `Copy` trait diagnostic for `SecretKey` [#12]
 - Include all features and targets in Clippy checks [#64]
@@ -144,6 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#85]: https://github.com/dusk-network/jubjub-schnorr/pull/85
 [#81]: https://github.com/dusk-network/jubjub-schnorr/issues/81
 [#79]: https://github.com/dusk-network/jubjub-schnorr/issues/79
 [#78]: https://github.com/dusk-network/jubjub-schnorr/issues/78

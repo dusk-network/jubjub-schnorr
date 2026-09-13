@@ -152,21 +152,23 @@ pub fn verify_signature_double(
 /// ### Parameters
 ///
 /// - `composer`: A mutable reference to the Plonk [`Composer`]`.
-/// - `u`: Witness for the random nonce used during signature generation.
-/// - `r`: Witness Point representing the nonce point `r = u*G`.
+/// - `u`: Witness for the signature's scalar response.
+/// - `r`: Witness point for the signature's nonce commitment.
 /// - `pk`: Witness Point representing the public key `pk = sk*G`.
 /// - `generator`: Witness Point representing the variable generator `G`
 /// - `msg`: Witness for the message.
 ///
 /// ### Returns
 ///
-/// - `Result<(), Error>`: Returns an empty `Result` on successful gadget
-///   creation or an `Error` if the witness `u` is not a valid [`JubJubScalar`].
+/// Returns `Ok(())` after appending the verification constraints. A
+/// noncanonical `u` makes the circuit unsatisfiable; it is not a host-side
+/// error. Point validity and subgroup constraints remain the caller's
+/// responsibility.
 ///
-/// ### Errors
+/// ### Circuit compatibility
 ///
-/// This function will return an `Error` if the witness `u` is not a valid
-/// [`JubJubScalar`].
+/// The canonical response constraints change the circuit layout. Regenerate
+/// circuit-specific proving and verifier keys when updating this gadget.
 ///
 /// [`SignatureVarGen`]: [`crate::SignatureVarGen`]
 pub fn verify_signature_var_gen(
@@ -177,6 +179,17 @@ pub fn verify_signature_var_gen(
     generator: WitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    // Bound the response and its distance from the maximum JubJub scalar
+    // to 252 bits. Noncanonical responses make the distance bound fail.
+    composer.component_range::<126>(u);
+    let distance = composer.gate_add(
+        Constraint::new()
+            .left(-BlsScalar::one())
+            .a(u)
+            .constant(BlsScalar::from(-JubJubScalar::one())),
+    );
+    composer.component_range::<126>(distance);
+
     let r_x = *r.x();
     let r_y = *r.y();
 
