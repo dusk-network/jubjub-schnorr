@@ -25,8 +25,8 @@ use dusk_poseidon::{Domain, HashGadget};
 /// ### Parameters
 ///
 /// - `composer`: A mutable reference to the Plonk [`Composer`]`.
-/// - `u`: Witness for the random nonce used during signature generation.
-/// - `r`: Witness Point representing the nonce point `r = u*G`.
+/// - `u`: Witness for the signature's scalar response.
+/// - `r`: Witness point for the signature's nonce commitment.
 /// - `pk`: Witness Point representing the public key `pk = sk*G`.
 /// - `msg`: Witness for the message.
 ///
@@ -77,9 +77,9 @@ pub fn verify_signature(
 /// ### Parameters
 ///
 /// - `composer`: A mutable reference to the Plonk [`Composer`].
-/// - `u`: Witness for the random nonce used during signature generation.
-/// - `r`: Witness Point representing the nonce points `R = u*G`
-/// - `r_p`: Witness Point representing the nonce points `R' = u*G'`.
+/// - `u`: Witness for the signature's scalar response.
+/// - `r`: Witness point for the signature's nonce commitment.
+/// - `r_p`: Witness point for the signature's second nonce commitment.
 /// - `pk`: Witness Point public key `PK = sk*G`
 /// - `pk_p`: Witness Point public key `PK' = sk*G'`
 /// - `msg`: Witness for the message.
