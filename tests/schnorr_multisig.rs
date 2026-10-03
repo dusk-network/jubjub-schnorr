@@ -8,7 +8,9 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_jubjub::{GENERATOR_EXTENDED, JubJubExtended, JubJubScalar};
+use dusk_jubjub::{
+    GENERATOR_EXTENDED, JubJubAffine, JubJubExtended, JubJubScalar,
+};
 use ff::Field;
 use jubjub_schnorr::{Error, PublicKey, SecretKey, Signature, multisig};
 use rand::SeedableRng;
@@ -427,4 +429,45 @@ fn round_two_rejects_unequal_commitment_lengths() {
         multisig::sign_round_2(&sk, nonce, &[pk], &[R], &[S, S], &message),
         Err(Error::InvalidMultisigTranscript)
     );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn rejects_identity_and_small_order_participant_keys() {
+    let mut rng = StdRng::seed_from_u64(0x388);
+    let sk = SecretKey::random(&mut rng);
+    let message = BlsScalar::random(&mut rng);
+    let identity = JubJubExtended::default();
+    let order_two: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), -BlsScalar::one())
+            .into();
+    let zero = JubJubScalar::zero();
+
+    for key in [identity, order_two] {
+        let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+        let pk_vec = [PublicKey::from(&sk), PublicKey::from(key)];
+        let R_vec = [R, identity];
+        let S_vec = [S, identity];
+
+        assert_eq!(
+            multisig::sign_round_2(
+                &sk, nonce, &pk_vec, &R_vec, &S_vec, &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::verify_share(&zero, 1, &pk_vec, &R_vec, &S_vec, &message),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::combine(
+                &[JubJubScalar::one(), zero],
+                &pk_vec,
+                &R_vec,
+                &S_vec,
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+    }
 }
