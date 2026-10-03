@@ -54,8 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Derive variable-generator signatures and public keys from the
-  affine-normalized generator, so that malformed extended representations of
-  one point cannot share a nonce [#88]
+  affine-normalized generator [#88]
 - Constrain variable-generator signature responses to canonical JubJub scalars
   in `verify_signature_var_gen` [#86]
 - Pin the absent secret-key ordering and implicit-copy trait diagnostics [#63]
