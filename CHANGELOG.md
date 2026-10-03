@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Derive variable-generator signatures and public keys from the
+  affine-normalized generator, so that malformed extended representations of
+  one point cannot share a nonce [#88]
 - Constrain variable-generator signature responses to canonical JubJub scalars
   in `verify_signature_var_gen` [#86]
 - Pin the absent secret-key ordering and implicit-copy trait diagnostics [#63]
@@ -146,6 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#88]: https://github.com/dusk-network/jubjub-schnorr/issues/88
 [#86]: https://github.com/dusk-network/jubjub-schnorr/issues/86
 [#81]: https://github.com/dusk-network/jubjub-schnorr/issues/81
 [#79]: https://github.com/dusk-network/jubjub-schnorr/issues/79

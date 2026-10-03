@@ -175,9 +175,11 @@ impl SecretKeyVarGen {
         &self.sk
     }
 
-    /// Returns a reference to the [`JubJubExtended`] generator.
-    pub(crate) fn generator(&self) -> &JubJubExtended {
-        &self.generator
+    /// Returns the generator normalized to affine coordinates, so that every
+    /// point derived from it depends only on the coordinates that the nonce
+    /// derivation binds.
+    pub(crate) fn generator(&self) -> JubJubExtended {
+        JubJubAffine::from(self.generator).into()
     }
 
     /// Signs a chosen message with a given secret key using the dusk
@@ -229,18 +231,16 @@ impl SecretKeyVarGen {
     where
         R: RngCore + CryptoRng,
     {
+        let generator = self.generator();
+
         // Create hedged nonce: mixes RNG output with (sk, generator, msg)
         // so that a weak RNG alone cannot cause nonce reuse.
-        let r = crate::nonce::hedged_nonce_var_gen(
-            rng,
-            &self.sk,
-            msg,
-            self.generator(),
-        );
+        let r =
+            crate::nonce::hedged_nonce_var_gen(rng, &self.sk, msg, &generator);
 
         // Derive a points from r, to sign with the message
         // R = r * G
-        let R = self.generator() * r;
+        let R = generator * r;
 
         // Compute challenge value, c = H(R||pk||G||m);
         let c = crate::signatures::var_gen::challenge_hash(

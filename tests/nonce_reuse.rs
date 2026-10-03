@@ -13,7 +13,9 @@
 //! recovery attack impossible.
 
 use dusk_bls12_381::BlsScalar;
-use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubScalar};
+use dusk_jubjub::{
+    GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubExtended, JubJubScalar,
+};
 use ff::Field;
 use jubjub_schnorr::{PublicKey, PublicKeyVarGen, SecretKey};
 use rand::SeedableRng;
@@ -193,6 +195,34 @@ fn key_recovery_cross_generator_fails() {
              mixed into nonce derivation"
         );
     }
+}
+
+/// The nonce binds the generator's affine coordinates, so extended
+/// representations sharing them must sign identically. Otherwise a repeated
+/// nonce under differing challenges reveals the secret key.
+#[test]
+fn affine_alias_generators_sign_identically() {
+    let g = GENERATOR_EXTENDED;
+    // Same affine coordinates as `g`, but an inconsistent `T1 * T2`.
+    let alias = JubJubExtended::from_raw_unchecked(
+        g.get_u(),
+        g.get_v(),
+        g.get_z(),
+        -g.get_t1(),
+        g.get_t2(),
+    );
+    let sk = SecretKey::from(JubJubScalar::from(42u64));
+    let msg = BlsScalar::from(42u64);
+
+    let sig = sk
+        .clone()
+        .with_variable_generator(g)
+        .sign(&mut ConstRng(0x42), msg);
+    let sig_alias = sk
+        .with_variable_generator(alias)
+        .sign(&mut ConstRng(0x42), msg);
+
+    assert_eq!(sig, sig_alias);
 }
 
 /// Verify that the classical nonce-reuse key recovery attack fails

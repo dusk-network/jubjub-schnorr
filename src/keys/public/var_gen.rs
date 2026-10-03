@@ -44,7 +44,7 @@ pub struct PublicKeyVarGen {
 
 impl From<&SecretKeyVarGen> for PublicKeyVarGen {
     fn from(sk: &SecretKeyVarGen) -> Self {
-        let generator = *sk.generator();
+        let generator = sk.generator();
         let pk = generator * sk.secret_key();
 
         PublicKeyVarGen { pk, generator }
