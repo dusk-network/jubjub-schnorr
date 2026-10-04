@@ -88,7 +88,8 @@
 //!     .expect("Multisig combination shouldn't fail");
 //!
 //! // Anyone can verify using the delinearized aggregate public key
-//! let pk = multisig::aggregate_pk(&pk_vec);
+//! let pk = multisig::aggregate_pk(&pk_vec)
+//!     .expect("valid participant keys should aggregate");
 //! assert!(pk.verify(&sig, message).is_ok());
 //! ```
 
@@ -151,8 +152,16 @@ impl Drop for MultisigNonce {
 /// ```
 ///
 /// Use this to compute the verification key for a multisignature.
-pub fn aggregate_pk(pk_vec: &[PublicKey]) -> PublicKey {
-    PublicKey::from(aggregate_key(pk_vec).point)
+///
+/// ## Errors
+///
+/// Returns [`Error::InvalidMultisigTranscript`] if `pk_vec` is empty or any
+/// public key is invalid, including the identity and small-order points.
+pub fn aggregate_pk(pk_vec: &[PublicKey]) -> Result<PublicKey, Error> {
+    if pk_vec.is_empty() || has_invalid_key(pk_vec) {
+        return Err(Error::InvalidMultisigTranscript);
+    }
+    Ok(PublicKey::from(aggregate_key(pk_vec).point))
 }
 
 /// Performs the first round to sign a message using the
@@ -203,8 +212,9 @@ where
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors do
-/// not have equal lengths, the signer key does not occur exactly once in the
-/// key list, or this state does not match the signer's commitment slot. Returns
+/// not have equal lengths, any public key is invalid, the signer key does not
+/// occur exactly once in the key list, or this state does not match the
+/// signer's commitment slot. Returns
 /// [`Error::DuplicatedNonce`] if any two participants supplied the same `R` or
 /// `S` commitment.
 pub fn sign_round_2(
@@ -215,7 +225,10 @@ pub fn sign_round_2(
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
 ) -> Result<JubJubScalar, Error> {
-    if pk_vec.len() != R_vec.len() || R_vec.len() != S_vec.len() {
+    if pk_vec.len() != R_vec.len()
+        || R_vec.len() != S_vec.len()
+        || has_invalid_key(pk_vec)
+    {
         return Err(Error::InvalidMultisigTranscript);
     }
 
@@ -278,7 +291,8 @@ pub fn sign_round_2(
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
-/// empty, have unequal lengths, or do not contain `participant_index`. Returns
+/// empty, have unequal lengths, contain an invalid public key, or do not
+/// contain `participant_index`. Returns
 /// [`Error::InvalidMultisigShare`] with `participant_index` if the share does
 /// not satisfy its verification equation.
 pub fn verify_share(
@@ -293,6 +307,7 @@ pub fn verify_share(
         || pk_vec.len() != R_vec.len()
         || R_vec.len() != S_vec.len()
         || participant_index >= pk_vec.len()
+        || has_invalid_key(pk_vec)
     {
         return Err(Error::InvalidMultisigTranscript);
     }
@@ -325,7 +340,7 @@ pub fn verify_share(
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
-/// empty or do not have equal lengths. Returns
+/// empty, do not have equal lengths, or contain an invalid public key. Returns
 /// [`Error::InvalidMultisigShare`] with the participant slot of the first share
 /// that fails verification. No aggregate signature is returned when a share is
 /// invalid.
@@ -340,6 +355,7 @@ pub fn combine(
         || z_vec.len() != pk_vec.len()
         || pk_vec.len() != R_vec.len()
         || R_vec.len() != S_vec.len()
+        || has_invalid_key(pk_vec)
     {
         return Err(Error::InvalidMultisigTranscript);
     }
@@ -361,6 +377,12 @@ pub fn combine(
     let u = z_vec.iter().sum();
 
     Ok(Signature::new(u, coefficients.aggregate_commitment))
+}
+
+/// Identity and small-order keys satisfy share verification without any
+/// secret, so they would count as participants that never signed.
+fn has_invalid_key(pk_vec: &[PublicKey]) -> bool {
+    pk_vec.iter().any(|pk| !pk.is_valid())
 }
 
 fn verify_share_with_coefficients(
@@ -702,7 +724,10 @@ mod tests {
             point_bytes(&transcript.aggregate_key.point),
             AGGREGATE_PUBLIC_KEY
         );
-        assert_eq!(aggregate_pk(&public_keys).to_bytes(), AGGREGATE_PUBLIC_KEY);
+        assert_eq!(
+            aggregate_pk(&public_keys).map(|pk| pk.to_bytes()),
+            Ok(AGGREGATE_PUBLIC_KEY)
+        );
         assert_eq!(transcript.a.to_bytes(), BINDING_COEFFICIENT);
         assert_eq!(
             point_bytes(&transcript.aggregate_commitment),

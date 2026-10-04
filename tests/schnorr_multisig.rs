@@ -8,7 +8,9 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_jubjub::{GENERATOR_EXTENDED, JubJubExtended, JubJubScalar};
+use dusk_jubjub::{
+    GENERATOR_EXTENDED, JubJubAffine, JubJubExtended, JubJubScalar,
+};
 use ff::Field;
 use jubjub_schnorr::{Error, PublicKey, SecretKey, Signature, multisig};
 use rand::SeedableRng;
@@ -68,7 +70,8 @@ fn sign_verify() {
         .expect("valid multisig transcript should combine");
 
     // Anyone can verify using the delinearized aggregate public key
-    let pk = multisig::aggregate_pk(&pk_vec);
+    let pk = multisig::aggregate_pk(&pk_vec)
+        .expect("valid participant keys should aggregate");
     assert!(pk.verify(&sig, message).is_ok());
 
     // We test using a wrong public key
@@ -132,6 +135,7 @@ fn verifies_every_valid_share_before_aggregation() {
             .expect("valid shares should aggregate");
     assert!(
         multisig::aggregate_pk(&pk_vec)
+            .expect("valid participant keys should aggregate")
             .verify(&signature, message)
             .is_ok()
     );
@@ -315,7 +319,8 @@ fn rogue_key_attack() {
     // WITH delinearization: the aggregate key is no longer Mallory's
     // key, so the same forged signature is rejected.
     let pk_vec = vec![pk_alice, pk_mallory_rogue];
-    let pk_agg = multisig::aggregate_pk(&pk_vec);
+    let pk_agg = multisig::aggregate_pk(&pk_vec)
+        .expect("Mallory's rogue key is a valid point");
     assert!(
         pk_agg.verify(&forged_sig, message).is_err(),
         "delinearized aggregate must reject Mallory's forgery"
@@ -425,6 +430,55 @@ fn round_two_rejects_unequal_commitment_lengths() {
     let (nonce, R, S) = multisig::sign_round_1(&mut rng);
     assert_eq!(
         multisig::sign_round_2(&sk, nonce, &[pk], &[R], &[S, S], &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn rejects_identity_and_small_order_participant_keys() {
+    let mut rng = StdRng::seed_from_u64(0x388);
+    let sk = SecretKey::random(&mut rng);
+    let message = BlsScalar::random(&mut rng);
+    let identity = JubJubExtended::default();
+    let order_two: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), -BlsScalar::one())
+            .into();
+    let zero = JubJubScalar::zero();
+
+    for key in [identity, order_two] {
+        let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+        let pk_vec = [PublicKey::from(&sk), PublicKey::from(key)];
+        let R_vec = [R, identity];
+        let S_vec = [S, identity];
+
+        assert_eq!(
+            multisig::sign_round_2(
+                &sk, nonce, &pk_vec, &R_vec, &S_vec, &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::verify_share(&zero, 1, &pk_vec, &R_vec, &S_vec, &message),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::combine(
+                &[JubJubScalar::one(), zero],
+                &pk_vec,
+                &R_vec,
+                &S_vec,
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::aggregate_pk(&pk_vec),
+            Err(Error::InvalidMultisigTranscript)
+        );
+    }
+    assert_eq!(
+        multisig::aggregate_pk(&[]),
         Err(Error::InvalidMultisigTranscript)
     );
 }
