@@ -27,9 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Change `multisig::sign_round_2`, `multisig::verify_share` and
-  `multisig::combine` to reject transcripts containing an invalid participant
-  public key, including the identity and small-order points [#89]
+- Change `multisig::aggregate_pk` to return a `Result` [#89]
+- Change `multisig::sign_round_2`, `multisig::verify_share`,
+  `multisig::combine` and `multisig::aggregate_pk` to reject an invalid
+  participant public key, including the identity and small-order points [#89]
 - Update Criterion to 0.8 [#81]
 - Raise the MSRV to Rust 1.96.1 [#79]
 - Update `bs58` to 0.5 [#78]

@@ -70,7 +70,8 @@ fn sign_verify() {
         .expect("valid multisig transcript should combine");
 
     // Anyone can verify using the delinearized aggregate public key
-    let pk = multisig::aggregate_pk(&pk_vec);
+    let pk = multisig::aggregate_pk(&pk_vec)
+        .expect("valid participant keys should aggregate");
     assert!(pk.verify(&sig, message).is_ok());
 
     // We test using a wrong public key
@@ -134,6 +135,7 @@ fn verifies_every_valid_share_before_aggregation() {
             .expect("valid shares should aggregate");
     assert!(
         multisig::aggregate_pk(&pk_vec)
+            .expect("valid participant keys should aggregate")
             .verify(&signature, message)
             .is_ok()
     );
@@ -317,7 +319,8 @@ fn rogue_key_attack() {
     // WITH delinearization: the aggregate key is no longer Mallory's
     // key, so the same forged signature is rejected.
     let pk_vec = vec![pk_alice, pk_mallory_rogue];
-    let pk_agg = multisig::aggregate_pk(&pk_vec);
+    let pk_agg = multisig::aggregate_pk(&pk_vec)
+        .expect("Mallory's rogue key is a valid point");
     assert!(
         pk_agg.verify(&forged_sig, message).is_err(),
         "delinearized aggregate must reject Mallory's forgery"
@@ -467,6 +470,10 @@ fn rejects_identity_and_small_order_participant_keys() {
                 &S_vec,
                 &message
             ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::aggregate_pk(&pk_vec),
             Err(Error::InvalidMultisigTranscript)
         );
     }

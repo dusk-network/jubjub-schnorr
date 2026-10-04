@@ -88,7 +88,8 @@
 //!     .expect("Multisig combination shouldn't fail");
 //!
 //! // Anyone can verify using the delinearized aggregate public key
-//! let pk = multisig::aggregate_pk(&pk_vec);
+//! let pk = multisig::aggregate_pk(&pk_vec)
+//!     .expect("valid participant keys should aggregate");
 //! assert!(pk.verify(&sig, message).is_ok());
 //! ```
 
@@ -151,8 +152,16 @@ impl Drop for MultisigNonce {
 /// ```
 ///
 /// Use this to compute the verification key for a multisignature.
-pub fn aggregate_pk(pk_vec: &[PublicKey]) -> PublicKey {
-    PublicKey::from(aggregate_key(pk_vec).point)
+///
+/// ## Errors
+///
+/// Returns [`Error::InvalidMultisigTranscript`] if any public key is invalid,
+/// including the identity and small-order points.
+pub fn aggregate_pk(pk_vec: &[PublicKey]) -> Result<PublicKey, Error> {
+    if has_invalid_key(pk_vec) {
+        return Err(Error::InvalidMultisigTranscript);
+    }
+    Ok(PublicKey::from(aggregate_key(pk_vec).point))
 }
 
 /// Performs the first round to sign a message using the
@@ -715,7 +724,10 @@ mod tests {
             point_bytes(&transcript.aggregate_key.point),
             AGGREGATE_PUBLIC_KEY
         );
-        assert_eq!(aggregate_pk(&public_keys).to_bytes(), AGGREGATE_PUBLIC_KEY);
+        assert_eq!(
+            aggregate_pk(&public_keys).map(|pk| pk.to_bytes()),
+            Ok(AGGREGATE_PUBLIC_KEY)
+        );
         assert_eq!(transcript.a.to_bytes(), BINDING_COEFFICIENT);
         assert_eq!(
             point_bytes(&transcript.aggregate_commitment),
