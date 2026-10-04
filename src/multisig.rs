@@ -155,10 +155,10 @@ impl Drop for MultisigNonce {
 ///
 /// ## Errors
 ///
-/// Returns [`Error::InvalidMultisigTranscript`] if any public key is invalid,
-/// including the identity and small-order points.
+/// Returns [`Error::InvalidMultisigTranscript`] if `pk_vec` is empty or any
+/// public key is invalid, including the identity and small-order points.
 pub fn aggregate_pk(pk_vec: &[PublicKey]) -> Result<PublicKey, Error> {
-    if has_invalid_key(pk_vec) {
+    if pk_vec.is_empty() || has_invalid_key(pk_vec) {
         return Err(Error::InvalidMultisigTranscript);
     }
     Ok(PublicKey::from(aggregate_key(pk_vec).point))

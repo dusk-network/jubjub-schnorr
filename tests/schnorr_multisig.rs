@@ -477,4 +477,8 @@ fn rejects_identity_and_small_order_participant_keys() {
             Err(Error::InvalidMultisigTranscript)
         );
     }
+    assert_eq!(
+        multisig::aggregate_pk(&[]),
+        Err(Error::InvalidMultisigTranscript)
+    );
 }
