@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change `multisig::sign_round_2`, `multisig::verify_share`,
+  `multisig::combine` and `multisig::aggregate_pk` to reject a repeated
+  participant public key [#92]
 - Change `multisig::aggregate_pk` to return a `Result` [#89]
 - Change `multisig::sign_round_2`, `multisig::verify_share`,
   `multisig::combine` and `multisig::aggregate_pk` to reject an invalid
@@ -152,6 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#92]: https://github.com/dusk-network/jubjub-schnorr/issues/92
 [#89]: https://github.com/dusk-network/jubjub-schnorr/issues/89
 [#88]: https://github.com/dusk-network/jubjub-schnorr/issues/88
 [#86]: https://github.com/dusk-network/jubjub-schnorr/issues/86
