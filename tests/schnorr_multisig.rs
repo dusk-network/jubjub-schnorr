@@ -194,7 +194,8 @@ fn verify_share_rejects_an_invalid_participant_slot() {
 fn verify_share_rejects_invalid_lengths() {
     let message = BlsScalar::from(1u64);
     let share = JubJubScalar::from(1u64);
-    let pk_vec = [PublicKey::from(GENERATOR_EXTENDED); 3];
+    let pk_vec = [1u64, 2, 3]
+        .map(|n| PublicKey::from(GENERATOR_EXTENDED * JubJubScalar::from(n)));
     let r_vec = [GENERATOR_EXTENDED; 3];
     let s_vec = [GENERATOR_EXTENDED; 3];
 
@@ -248,7 +249,8 @@ fn combine_reports_the_first_invalid_share() {
 fn combine_rejects_invalid_lengths() {
     let message = BlsScalar::from(1u64);
     let z_vec = [JubJubScalar::from(1u64); 3];
-    let pk_vec = [PublicKey::from(GENERATOR_EXTENDED); 3];
+    let pk_vec = [1u64, 2, 3]
+        .map(|n| PublicKey::from(GENERATOR_EXTENDED * JubJubScalar::from(n)));
     let r_vec = [GENERATOR_EXTENDED; 3];
     let s_vec = [GENERATOR_EXTENDED; 3];
 
@@ -479,6 +481,46 @@ fn rejects_identity_and_small_order_participant_keys() {
     }
     assert_eq!(
         multisig::aggregate_pk(&[]),
+        Err(Error::InvalidMultisigTranscript)
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn rejects_repeated_participant_keys() {
+    let mut rng = StdRng::seed_from_u64(0x392);
+    let sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let message = BlsScalar::random(&mut rng);
+    let (_, R_a, S_a) = multisig::sign_round_1(&mut rng);
+    let (_, R_b, S_b) = multisig::sign_round_1(&mut rng);
+    let (pk_vec, R_vec, S_vec) = ([pk, pk], [R_a, R_b], [S_a, S_b]);
+    let share = JubJubScalar::one();
+
+    // The signer appears once, another participant twice.
+    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let signer = SecretKey::random(&mut rng);
+    assert_eq!(
+        multisig::sign_round_2(
+            &signer,
+            nonce,
+            &[PublicKey::from(&signer), pk, pk],
+            &[R, R_a, R_b],
+            &[S, S_a, S_b],
+            &message
+        ),
+        Err(Error::InvalidMultisigTranscript)
+    );
+    assert_eq!(
+        multisig::verify_share(&share, 0, &pk_vec, &R_vec, &S_vec, &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
+    assert_eq!(
+        multisig::combine(&[share; 2], &pk_vec, &R_vec, &S_vec, &message),
+        Err(Error::InvalidMultisigTranscript)
+    );
+    assert_eq!(
+        multisig::aggregate_pk(&pk_vec),
         Err(Error::InvalidMultisigTranscript)
     );
 }

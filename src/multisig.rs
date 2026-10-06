@@ -156,7 +156,8 @@ impl Drop for MultisigNonce {
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if `pk_vec` is empty or any
-/// public key is invalid, including the identity and small-order points.
+/// public key is invalid or repeated. Invalid keys include the identity and
+/// small-order points.
 pub fn aggregate_pk(pk_vec: &[PublicKey]) -> Result<PublicKey, Error> {
     if pk_vec.is_empty() || has_invalid_key(pk_vec) {
         return Err(Error::InvalidMultisigTranscript);
@@ -212,9 +213,9 @@ where
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors do
-/// not have equal lengths, any public key is invalid, the signer key does not
-/// occur exactly once in the key list, or this state does not match the
-/// signer's commitment slot. Returns
+/// not have equal lengths, any public key is invalid or repeated, the signer
+/// key is not in the key list, or this state does not match the signer's
+/// commitment slot. Returns
 /// [`Error::DuplicatedNonce`] if any two participants supplied the same `R` or
 /// `S` commitment.
 pub fn sign_round_2(
@@ -233,16 +234,11 @@ pub fn sign_round_2(
     }
 
     let signer_pk = PublicKey::from(sk);
-    let mut signer_indices = pk_vec
+    let signer_index = pk_vec
         .iter()
-        .enumerate()
-        .filter(|(_, pk)| **pk == signer_pk)
-        .map(|(index, _)| index);
-    let signer_index = signer_indices
-        .next()
+        .position(|pk| *pk == signer_pk)
         .ok_or(Error::InvalidMultisigTranscript)?;
-    if signer_indices.next().is_some()
-        || R_vec[signer_index] != GENERATOR_EXTENDED * nonce.r
+    if R_vec[signer_index] != GENERATOR_EXTENDED * nonce.r
         || S_vec[signer_index] != GENERATOR_EXTENDED * nonce.s
     {
         return Err(Error::InvalidMultisigTranscript);
@@ -291,8 +287,8 @@ pub fn sign_round_2(
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
-/// empty, have unequal lengths, contain an invalid public key, or do not
-/// contain `participant_index`. Returns
+/// empty, have unequal lengths, contain an invalid or repeated public key, or
+/// do not contain `participant_index`. Returns
 /// [`Error::InvalidMultisigShare`] with `participant_index` if the share does
 /// not satisfy its verification equation.
 pub fn verify_share(
@@ -340,7 +336,8 @@ pub fn verify_share(
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
-/// empty, do not have equal lengths, or contain an invalid public key. Returns
+/// empty, do not have equal lengths, or contain an invalid or repeated public
+/// key. Returns
 /// [`Error::InvalidMultisigShare`] with the participant slot of the first share
 /// that fails verification. No aggregate signature is returned when a share is
 /// invalid.
@@ -380,9 +377,13 @@ pub fn combine(
 }
 
 /// Identity and small-order keys satisfy share verification without any
-/// secret, so they would count as participants that never signed.
+/// secret, and a repeated key lets one secret sign for several entries, so
+/// either counts participants that never signed.
 fn has_invalid_key(pk_vec: &[PublicKey]) -> bool {
-    pk_vec.iter().any(|pk| !pk.is_valid())
+    pk_vec
+        .iter()
+        .enumerate()
+        .any(|(i, pk)| !pk.is_valid() || pk_vec[..i].contains(pk))
 }
 
 fn verify_share_with_coefficients(
