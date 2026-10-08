@@ -63,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Constrain the responses of `gadgets::verify_signature` and
+  `gadgets::verify_signature_double` to canonical JubJub scalars [#87]
 - Reject identity points in `gadgets::verify_signature`,
   `gadgets::verify_signature_double` and `gadgets::verify_signature_var_gen`
   [#50]
@@ -160,6 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#95]: https://github.com/dusk-network/jubjub-schnorr/issues/95
+[#87]: https://github.com/dusk-network/jubjub-schnorr/issues/87
 [#50]: https://github.com/dusk-network/jubjub-schnorr/issues/50
 [#92]: https://github.com/dusk-network/jubjub-schnorr/issues/92
 [#89]: https://github.com/dusk-network/jubjub-schnorr/issues/89

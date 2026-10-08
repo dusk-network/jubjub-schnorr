@@ -74,7 +74,8 @@ fn assert_non_identity(composer: &mut Composer, point: WitnessPoint) {
 /// ### Errors
 ///
 /// This function will return an `Error` if the witness `u` is not a valid
-/// [`JubJubScalar`].
+/// [`JubJubScalar`]. The circuit constrains `u` to a canonical
+/// [`JubJubScalar`] as well, so a noncanonical `u` cannot satisfy it.
 ///
 /// [`Signature`]: [`crate::Signature`]
 pub fn verify_signature(
@@ -131,7 +132,8 @@ pub fn verify_signature(
 /// ### Errors
 ///
 /// This function will return an `Error` if the witness `u` is not a valid
-/// [`JubJubScalar`].
+/// [`JubJubScalar`]. The circuit constrains `u` to a canonical
+/// [`JubJubScalar`] as well, so a noncanonical `u` cannot satisfy it.
 ///
 /// [`SignatureDouble`]: [`crate::SignatureDouble`]
 pub fn verify_signature_double(
