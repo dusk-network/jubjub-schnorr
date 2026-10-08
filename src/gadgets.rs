@@ -15,10 +15,38 @@
 //! they enter the circuit, with [`Composer::assert_torsion_free_point`] for
 //! prover-supplied points. A nonce commitment needs no such check, because
 //! the verification equation constrains it to a sum of subgroup points.
+//!
+//! The gadgets constrain every point to differ from the identity, so they
+//! accept exactly the points native verification accepts.
+//!
+//! # Circuit compatibility
+//!
+//! A change to the constraints of a gadget changes the layout of every circuit
+//! using it. Such a circuit must regenerate its proving and verifier keys and
+//! any cached circuit description.
 
 use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED};
 use dusk_plonk::prelude::*;
 use dusk_poseidon::{Domain, HashGadget};
+
+/// Constrains a point to differ from the identity.
+///
+/// The point must be constrained to the prime-order subgroup, where only the
+/// identity has `x = 0`. Proving that `x` has an inverse then excludes it
+/// without branching on the witness.
+fn assert_non_identity(composer: &mut Composer, point: WitnessPoint) {
+    let x = *point.x();
+    let x_inverse = composer[x].invert().unwrap_or(BlsScalar::zero());
+    let x_inverse = composer.append_witness(x_inverse);
+
+    composer.append_gate(
+        Constraint::new()
+            .mult(1)
+            .a(x)
+            .b(x_inverse)
+            .constant(-BlsScalar::one()),
+    );
+}
 
 /// Verifies a single-key Schnorr signature [`Signature`]within a Plonk circuit
 /// without requiring the secret key as a witness.
@@ -56,6 +84,9 @@ pub fn verify_signature(
     pk: TorsionFreeWitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    assert_non_identity(composer, r);
+    assert_non_identity(composer, pk.into());
+
     let r_x = *r.x();
     let r_y = *r.y();
 
@@ -112,6 +143,11 @@ pub fn verify_signature_double(
     pk_p: TorsionFreeWitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    assert_non_identity(composer, r);
+    assert_non_identity(composer, r_p);
+    assert_non_identity(composer, pk.into());
+    assert_non_identity(composer, pk_p.into());
+
     let r_x = *r.x();
     let r_y = *r.y();
 
@@ -172,11 +208,6 @@ pub fn verify_signature_double(
 /// noncanonical `u` makes the circuit unsatisfiable; it is not a host-side
 /// error.
 ///
-/// ### Circuit compatibility
-///
-/// The canonical response constraints change the circuit layout. Regenerate
-/// circuit-specific proving and verifier keys when updating this gadget.
-///
 /// [`SignatureVarGen`]: [`crate::SignatureVarGen`]
 pub fn verify_signature_var_gen(
     composer: &mut Composer,
@@ -186,6 +217,10 @@ pub fn verify_signature_var_gen(
     generator: TorsionFreeWitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    assert_non_identity(composer, r);
+    assert_non_identity(composer, pk.into());
+    assert_non_identity(composer, generator.into());
+
     // Bound the response and its distance from the maximum JubJub scalar
     // to 252 bits. Noncanonical responses make the distance bound fail.
     composer.component_range_bits::<252>(u);

@@ -85,6 +85,47 @@ fn grind_nonce(
 }
 
 //
+// Pin the gates of each gadget
+//
+
+/// Returns the number of gates that `gadget` appends to `composer`.
+fn appended_gates(
+    composer: &mut Composer,
+    gadget: impl FnOnce(&mut Composer) -> Result<(), PlonkError>,
+) -> usize {
+    let before = composer.constraints();
+    gadget(composer).expect("The gadget should append its gates");
+    composer.constraints() - before
+}
+
+/// Pins the gates each gadget appends. Dropping one identity check removes
+/// one gate, and no satisfiability test can catch it for a point of a double
+/// pair or for the generator: a transcript where only that point is the
+/// identity needs a challenge that depends on its own output.
+#[test]
+fn gadget_gate_counts() {
+    // The counts do not depend on the witness values.
+    let mut composer = Composer::initialized();
+    let u = composer.append_witness(JubJubScalar::one());
+    let msg = composer.append_witness(BlsScalar::one());
+    let r = composer.append_point(GENERATOR_EXTENDED).unwrap();
+    let pk = append_subgroup_point(&mut composer, GENERATOR_EXTENDED).unwrap();
+
+    let gates = [
+        appended_gates(&mut composer, |composer| {
+            gadgets::verify_signature(composer, u, r, pk, msg)
+        }),
+        appended_gates(&mut composer, |composer| {
+            gadgets::verify_signature_double(composer, u, r, r, pk, pk, msg)
+        }),
+        appended_gates(&mut composer, |composer| {
+            gadgets::verify_signature_var_gen(composer, u, r, pk, pk, msg)
+        }),
+    ];
+    assert_eq!(gates, [3748, 6758, 5506]);
+}
+
+//
 // Test verify_signature
 //
 #[derive(Clone, Copy, Debug, Default)]
@@ -142,6 +183,36 @@ impl SignatureCircuit {
         });
         let r = GENERATOR_EXTENDED * nonce;
         let u = nonce - c * sk;
+        assert_eq!(GENERATOR_EXTENDED * u + pk * c, r);
+
+        Self { u, r, pk, message }
+    }
+
+    /// Any response signs for the identity key, with `R = [u]G`.
+    pub fn identity_key(rng: &mut StdRng) -> Self {
+        let u = JubJubScalar::random(&mut *rng);
+
+        Self {
+            u,
+            r: GENERATOR_EXTENDED * u,
+            pk: JubJubExtended::identity(),
+            message: BlsScalar::random(&mut *rng),
+        }
+    }
+
+    /// The key owner signs with the identity nonce, with `u = -c * sk`.
+    pub fn identity_nonce(rng: &mut StdRng) -> Self {
+        let sk = JubJubScalar::random(&mut *rng);
+        let pk = GENERATOR_EXTENDED * sk;
+        let message = BlsScalar::random(&mut *rng);
+        let r = JubJubExtended::identity();
+        let (r_xy, pk_xy) = (r.to_hash_inputs(), pk.to_hash_inputs());
+
+        let c = Hash::digest_truncated(
+            Domain::Other,
+            &[r_xy[0], r_xy[1], pk_xy[0], pk_xy[1], message],
+        )[0];
+        let u = -(c * sk);
         assert_eq!(GENERATOR_EXTENDED * u + pk * c, r);
 
         Self { u, r, pk, message }
@@ -220,6 +291,19 @@ fn verify_signature_rejects_torsioned_key() {
         .prove(&mut rng, &control)
         .expect("The key without torsion should prove");
     assert_unsatisfiable(&prover, &circuit, "torsioned public key");
+}
+
+#[test]
+fn verify_signature_rejects_identity_points() {
+    let mut rng = StdRng::seed_from_u64(0x1d);
+    let (prover, _) = Compiler::compile::<SignatureCircuit>(&PP, LABEL)
+        .expect("Circuit should compile successfully");
+
+    let circuit = SignatureCircuit::identity_key(&mut rng);
+    assert_unsatisfiable(&prover, &circuit, "identity public key");
+
+    let circuit = SignatureCircuit::identity_nonce(&mut rng);
+    assert_unsatisfiable(&prover, &circuit, "identity nonce commitment");
 }
 
 //
@@ -301,6 +385,59 @@ impl SignatureDoubleCircuit {
             u,
             r,
             r_p,
+            pk,
+            pk_p,
+            message,
+        }
+    }
+
+    /// Any response signs for identity keys, with `R = [u]G`, `R' = [u]G'`.
+    pub fn identity_keys(rng: &mut StdRng) -> Self {
+        let u = JubJubScalar::random(&mut *rng);
+
+        Self {
+            u,
+            r: GENERATOR_EXTENDED * u,
+            r_p: GENERATOR_NUMS_EXTENDED * u,
+            pk: JubJubExtended::identity(),
+            pk_p: JubJubExtended::identity(),
+            message: BlsScalar::random(&mut *rng),
+        }
+    }
+
+    /// The key owner signs with identity nonces, with `u = -c * sk`.
+    pub fn identity_nonces(rng: &mut StdRng) -> Self {
+        let sk = JubJubScalar::random(&mut *rng);
+        let pk = GENERATOR_EXTENDED * sk;
+        let pk_p = GENERATOR_NUMS_EXTENDED * sk;
+        let message = BlsScalar::random(&mut *rng);
+        let r = JubJubExtended::identity();
+        let r_xy = r.to_hash_inputs();
+        let (pk_xy, pk_p_xy) = (pk.to_hash_inputs(), pk_p.to_hash_inputs());
+
+        let c = Hash::digest_truncated(
+            Domain::Other,
+            &[
+                DOUBLE_CHALLENGE_DOMAIN.into(),
+                r_xy[0],
+                r_xy[1],
+                r_xy[0],
+                r_xy[1],
+                pk_xy[0],
+                pk_xy[1],
+                pk_p_xy[0],
+                pk_p_xy[1],
+                message,
+            ],
+        )[0];
+        let u = -(c * sk);
+        assert_eq!(GENERATOR_EXTENDED * u + pk * c, r);
+        assert_eq!(GENERATOR_NUMS_EXTENDED * u + pk_p * c, r);
+
+        Self {
+            u,
+            r,
+            r_p: r,
             pk,
             pk_p,
             message,
@@ -409,6 +546,19 @@ fn verify_signature_double_rejects_torsioned_key() {
     assert_unsatisfiable(&prover, &circuit, "torsioned secondary key");
 }
 
+#[test]
+fn verify_signature_double_rejects_identity_points() {
+    let mut rng = StdRng::seed_from_u64(0x1d);
+    let (prover, _) = Compiler::compile::<SignatureDoubleCircuit>(&PP, LABEL)
+        .expect("Circuit should compile successfully");
+
+    let circuit = SignatureDoubleCircuit::identity_keys(&mut rng);
+    assert_unsatisfiable(&prover, &circuit, "identity public keys");
+
+    let circuit = SignatureDoubleCircuit::identity_nonces(&mut rng);
+    assert_unsatisfiable(&prover, &circuit, "identity nonce commitments");
+}
+
 //
 // Test verify_signature_var_gen
 //
@@ -489,6 +639,65 @@ impl SignatureVarGenCircuit {
             pk,
             generator,
             message,
+        }
+    }
+
+    /// Any response signs for the identity key, with `R = [u]generator`.
+    pub fn identity_key(rng: &mut StdRng) -> Self {
+        let u = JubJubScalar::random(&mut *rng);
+        let generator = GENERATOR_EXTENDED * JubJubScalar::random(&mut *rng);
+
+        Self {
+            u: u.into(),
+            r: generator * u,
+            pk: JubJubExtended::identity(),
+            generator,
+            message: BlsScalar::random(&mut *rng),
+        }
+    }
+
+    /// The key owner signs with the identity nonce, with `u = -c * sk`.
+    pub fn identity_nonce(rng: &mut StdRng) -> Self {
+        let sk = JubJubScalar::random(&mut *rng);
+        let generator = GENERATOR_EXTENDED * JubJubScalar::random(&mut *rng);
+        let pk = generator * sk;
+        let message = BlsScalar::random(&mut *rng);
+        let r = JubJubExtended::identity();
+        let (r_xy, pk_xy) = (r.to_hash_inputs(), pk.to_hash_inputs());
+        let generator_xy = generator.to_hash_inputs();
+
+        let c = Hash::digest_truncated(
+            Domain::Other,
+            &[
+                r_xy[0],
+                r_xy[1],
+                pk_xy[0],
+                pk_xy[1],
+                generator_xy[0],
+                generator_xy[1],
+                message,
+            ],
+        )[0];
+        let u = -(c * sk);
+        assert_eq!(generator * u + pk * c, r);
+
+        Self {
+            u: u.into(),
+            r,
+            pk,
+            generator,
+            message,
+        }
+    }
+
+    /// Any response signs for the identity generator, key and nonce.
+    pub fn identity_generator(rng: &mut StdRng) -> Self {
+        Self {
+            u: JubJubScalar::random(&mut *rng).into(),
+            r: JubJubExtended::identity(),
+            pk: JubJubExtended::identity(),
+            generator: JubJubExtended::identity(),
+            message: BlsScalar::random(&mut *rng),
         }
     }
 }
@@ -576,6 +785,22 @@ fn verify_signature_var_gen_rejects_torsioned_key() {
         .prove(&mut rng, &control)
         .expect("The key without torsion should prove");
     assert_unsatisfiable(&prover, &circuit, "torsioned public key");
+}
+
+#[test]
+fn verify_signature_var_gen_rejects_identity_points() {
+    let mut rng = StdRng::seed_from_u64(0x1d);
+    let (prover, _) = Compiler::compile::<SignatureVarGenCircuit>(&PP, LABEL)
+        .expect("Circuit should compile successfully");
+
+    let circuit = SignatureVarGenCircuit::identity_key(&mut rng);
+    assert_unsatisfiable(&prover, &circuit, "identity public key");
+
+    let circuit = SignatureVarGenCircuit::identity_nonce(&mut rng);
+    assert_unsatisfiable(&prover, &circuit, "identity nonce commitment");
+
+    let circuit = SignatureVarGenCircuit::identity_generator(&mut rng);
+    assert_unsatisfiable(&prover, &circuit, "identity generator");
 }
 
 #[test]

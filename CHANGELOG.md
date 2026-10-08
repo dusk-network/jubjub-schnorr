@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject identity points in `gadgets::verify_signature`,
+  `gadgets::verify_signature_double` and `gadgets::verify_signature_var_gen`
+  [#50]
 - Derive variable-generator signatures and public keys from the
   affine-normalized generator [#88]
 - Constrain variable-generator signature responses to canonical JubJub scalars
