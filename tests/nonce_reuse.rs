@@ -14,10 +14,11 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{
-    GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubExtended, JubJubScalar,
+    GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubAffine, JubJubExtended,
+    JubJubScalar,
 };
 use ff::Field;
-use jubjub_schnorr::{PublicKey, PublicKeyVarGen, SecretKey};
+use jubjub_schnorr::{PublicKey, PublicKeyDouble, PublicKeyVarGen, SecretKey};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand_core::{CryptoRng, RngCore};
@@ -53,6 +54,118 @@ impl RngCore for ConstRng {
 }
 
 impl CryptoRng for ConstRng {}
+
+/// Recompute a single-signer challenge, `H(prefix || points || msg)`
+/// truncated to a JubJub scalar.
+fn challenge(
+    prefix: &[BlsScalar],
+    points: &[&JubJubExtended],
+    msg: BlsScalar,
+) -> JubJubScalar {
+    let mut preimage = prefix.to_vec();
+    for point in points {
+        preimage.extend(point.to_hash_inputs());
+    }
+    preimage.push(msg);
+    dusk_poseidon::Hash::digest_truncated(
+        dusk_poseidon::Domain::Other,
+        &preimage,
+    )[0]
+}
+
+/// Hedged nonces must be uniform over the JubJub scalars, which go up to
+/// about 2^251.86. A nonce truncated to 250 bits always lies below 2^250,
+/// which a uniform nonce does with probability about 0.28.
+#[test]
+fn hedged_nonces_cover_the_scalar_field() {
+    // 2^250 is the smallest scalar whose top byte is at least 4.
+    let above_2_250 = |nonce: JubJubScalar| nonce.to_bytes()[31] >= 4;
+    let mut rng = StdRng::seed_from_u64(0xfa);
+    let sk = SecretKey::random(&mut rng);
+    let pk = PublicKey::from(&sk);
+    let pk_double = PublicKeyDouble::from(&sk);
+    let sk_var_gen = sk
+        .clone()
+        .with_variable_generator(GENERATOR_EXTENDED * JubJubScalar::from(3u64));
+    let pk_var_gen = PublicKeyVarGen::from(&sk_var_gen);
+    let double_tag = BlsScalar::from(u64::from_be_bytes(*b"JJSCHDBL"));
+
+    let mut above = [0; 3];
+    for msg in (0..64u64).map(BlsScalar::from) {
+        let sig = sk.sign(&mut rng, msg);
+        let c = challenge(&[], &[sig.R(), pk.as_ref()], msg);
+        let nonce = sig.u() + c * sk.as_ref();
+        assert_eq!(GENERATOR_EXTENDED * nonce, *sig.R());
+        above[0] += usize::from(above_2_250(nonce));
+
+        let sig = sk.sign_double(&mut rng, msg);
+        let points =
+            [sig.R(), sig.R_prime(), pk_double.pk(), pk_double.pk_prime()];
+        let c = challenge(&[double_tag], &points, msg);
+        let nonce = sig.u() + c * sk.as_ref();
+        assert_eq!(GENERATOR_NUMS_EXTENDED * nonce, *sig.R_prime());
+        above[1] += usize::from(above_2_250(nonce));
+
+        let sig = sk_var_gen.sign(&mut rng, msg);
+        let points = [sig.R(), pk_var_gen.public_key(), pk_var_gen.generator()];
+        let c = challenge(&[], &points, msg);
+        let nonce = sig.u() + c * sk.as_ref();
+        assert_eq!(pk_var_gen.generator() * nonce, *sig.R());
+        above[2] += usize::from(above_2_250(nonce));
+    }
+
+    assert!(above.iter().all(|&count| count > 0), "{above:?}");
+}
+
+/// Known answers for the single-signer hedged nonces, with `sk = 42`,
+/// `msg = 7`, every RNG byte `0x42`, and `G = 3 * GENERATOR_EXTENDED` for
+/// the variable generator.
+///
+/// They were derived without this crate. `random` is the 64 RNG bytes
+/// reduced modulo the JubJub order. The nonce is the Poseidon
+/// `Domain::Other` digest of `random, sk, 1, msg` (standard), `random, sk,
+/// 2, msg` (double) or `random, sk, G.u, G.v, msg` (variable generator),
+/// reduced modulo the JubJub order. Points use the compressed affine
+/// encoding.
+#[test]
+fn hedged_nonce_known_answers() {
+    const STANDARD_R: [u8; 32] = [
+        0xac, 0xbc, 0xd1, 0xd0, 0x3a, 0xd7, 0x0f, 0xbe, 0xd5, 0x82, 0xbf, 0xef,
+        0xcd, 0x1e, 0x82, 0x1e, 0x0a, 0x76, 0x88, 0x11, 0xf5, 0xc5, 0xa4, 0x25,
+        0x9f, 0x49, 0xda, 0x58, 0xea, 0x6d, 0x94, 0x93,
+    ];
+    const DOUBLE_R: [u8; 32] = [
+        0xd1, 0xc7, 0x11, 0x23, 0x9d, 0x0d, 0x98, 0x18, 0x9a, 0xae, 0x87, 0xce,
+        0xc9, 0xb1, 0x2e, 0x65, 0x66, 0x49, 0xeb, 0x59, 0x47, 0xdd, 0x97, 0x3c,
+        0x74, 0x13, 0xee, 0xd0, 0xcd, 0x6b, 0x1f, 0xf1,
+    ];
+    const DOUBLE_R_PRIME: [u8; 32] = [
+        0x8e, 0x1c, 0x62, 0x77, 0xfc, 0xa9, 0xf8, 0x77, 0x64, 0x66, 0xaa, 0x09,
+        0x6b, 0x2c, 0xb7, 0x5e, 0x71, 0xc1, 0x03, 0x8b, 0xd2, 0x72, 0xd5, 0x34,
+        0x7e, 0x22, 0x58, 0x1e, 0x00, 0x64, 0x0b, 0xed,
+    ];
+    const VAR_GEN_R: [u8; 32] = [
+        0x29, 0xf4, 0xee, 0x93, 0x90, 0x3d, 0xd6, 0x46, 0x4b, 0x94, 0x7c, 0xc3,
+        0x2f, 0x18, 0xe7, 0xc7, 0x50, 0x92, 0xb6, 0x6a, 0xf9, 0xeb, 0xa7, 0x39,
+        0x7f, 0x9e, 0x90, 0x36, 0x20, 0x71, 0x68, 0xd9,
+    ];
+
+    let point = |point: &JubJubExtended| JubJubAffine::from(point).to_bytes();
+    let sk = SecretKey::from(JubJubScalar::from(42u64));
+    let msg = BlsScalar::from(7u64);
+
+    let sig = sk.sign(&mut ConstRng(0x42), msg);
+    assert_eq!(point(sig.R()), STANDARD_R);
+
+    let sig = sk.sign_double(&mut ConstRng(0x42), msg);
+    assert_eq!(point(sig.R()), DOUBLE_R);
+    assert_eq!(point(sig.R_prime()), DOUBLE_R_PRIME);
+
+    let sig = sk
+        .with_variable_generator(GENERATOR_EXTENDED * JubJubScalar::from(3u64))
+        .sign(&mut ConstRng(0x42), msg);
+    assert_eq!(point(sig.R()), VAR_GEN_R);
+}
 
 /// With a broken RNG, signing two different messages must produce
 /// different nonces (different R values). If R values were the same,

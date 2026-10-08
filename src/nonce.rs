@@ -48,7 +48,8 @@ where
     let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
     // H(rng || sk || tag || msg) -> JubJubScalar
     let input = Zeroizing::new([rng_bls, sk_bls, TAG_STANDARD, msg]);
-    nonce(Hash::digest(Domain::Other, input.as_ref()))
+    let [nonce] = nonces(Hash::digest(Domain::Other, input.as_ref()));
+    nonce
 }
 
 /// Generate a hedged nonce for the double Schnorr signature.
@@ -65,7 +66,8 @@ where
     let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
     // H(rng || sk || tag || msg) -> JubJubScalar
     let input = Zeroizing::new([rng_bls, sk_bls, TAG_DOUBLE, msg]);
-    nonce(Hash::digest(Domain::Other, input.as_ref()))
+    let [nonce] = nonces(Hash::digest(Domain::Other, input.as_ref()));
+    nonce
 }
 
 /// Generate a hedged nonce for the variable-generator variant.
@@ -88,23 +90,23 @@ where
     // H(rng || sk || gen_x || gen_y || msg) -> JubJubScalar
     let input =
         Zeroizing::new([rng_bls, sk_bls, gen_coords[0], gen_coords[1], msg]);
-    nonce(Hash::digest(Domain::Other, input.as_ref()))
+    let [nonce] = nonces(Hash::digest(Domain::Other, input.as_ref()));
+    nonce
 }
 
-/// Truncate the digest to a 250-bit nonce, as `Hash::digest_truncated` does,
-/// and wipe the digest. `digest_truncated` would leave both its digest and
-/// the vector it returns in freed memory.
-fn nonce(digest: Vec<BlsScalar>) -> JubJubScalar {
-    const TRUNCATION_MASK: BlsScalar = BlsScalar::from_raw([
-        0xffff_ffff_ffff_ffff,
-        0xffff_ffff_ffff_ffff,
-        0xffff_ffff_ffff_ffff,
-        0x03ff_ffff_ffff_ffff,
-    ]);
+/// Reduce each digest element modulo the JubJub scalar order and wipe the
+/// digest.
+///
+/// The BLS12-381 scalar modulus exceeds eight times the JubJub order by less
+/// than 2^126, so a uniform digest reduces to a nonce within 2^-129 of
+/// uniform.
+/// Truncating the digest to 250 bits, as `Hash::digest_truncated` does,
+/// would only reach the nonces below 2^250, about 28% of the scalars.
+fn nonces<const N: usize>(digest: Vec<BlsScalar>) -> [JubJubScalar; N] {
     let digest = Zeroizing::new(digest);
-    JubJubScalar::from_raw(
-        *(digest[0] & TRUNCATION_MASK).reduce().internal_repr(),
-    )
+    core::array::from_fn(|i| {
+        JubJubScalar::from_bytes_wide(&widen(digest[i].to_bytes()))
+    })
 }
 
 /// Draw randomness and convert inputs to BlsScalar for Poseidon.
@@ -177,19 +179,23 @@ mod tests {
     }
 
     #[test]
-    fn nonce_digest_is_compatible_and_erased() {
+    fn nonce_digest_is_reduced_and_erased() {
         let mut rng = StdRng::seed_from_u64(16);
         for len in [4, 5] {
             for _ in 0..8 {
                 let input =
                     [BlsScalar::zero(); 5].map(|_| BlsScalar::random(&mut rng));
                 let input = &input[..len];
-                let expected = Hash::digest_truncated(Domain::Other, input)[0];
+                let mut wide = [0u8; 64];
+                wide[..32].copy_from_slice(
+                    &Hash::digest(Domain::Other, input)[0].to_bytes(),
+                );
+                let expected = JubJubScalar::from_bytes_wide(&wide);
                 let digest = Hash::digest(Domain::Other, input);
                 let ptr = digest.as_ptr().cast::<u8>().cast_mut();
                 let bytes = core::mem::size_of_val(digest.as_slice());
                 WATCH.with(|watch| watch.set((ptr, bytes, false)));
-                assert_eq!(nonce(digest), expected);
+                assert_eq!(nonces(digest), [expected]);
                 WATCH.with(|watch| assert!(watch.get().2, "digest not erased"));
             }
         }
