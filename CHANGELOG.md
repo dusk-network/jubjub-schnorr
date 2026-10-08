@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change `gadgets::verify_signature`, `gadgets::verify_signature_double` and
+  `gadgets::verify_signature_var_gen` to take public keys and the generator as
+  `TorsionFreeWitnessPoint` [#50]
+- Update `dusk-plonk` to 0.24 [#95]
+- Update `dusk-poseidon` to 0.44 [#95]
+- Update `dusk-bls12_381` to 0.16 [#95]
+- Update `dusk-jubjub` to 0.16 [#95]
 - Change `multisig::sign_round_2`, `multisig::verify_share`,
   `multisig::combine` and `multisig::aggregate_pk` to reject a repeated
   participant public key [#92]
@@ -51,8 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in all Schnorr sign variants to prevent secret key recovery under
   weak RNGs
 - Include generator point in VarGen Schnorr challenge hash
-- Update `dusk-poseidon` to v0.42.0-rc.0
-- Update `dusk-plonk` to 0.22.0-rc.0
 - Move to stable MSRV 1.85
 - Move to rust edition 2024
 
@@ -151,6 +156,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#95]: https://github.com/dusk-network/jubjub-schnorr/issues/95
+[#50]: https://github.com/dusk-network/jubjub-schnorr/issues/50
 [#92]: https://github.com/dusk-network/jubjub-schnorr/issues/92
 [#89]: https://github.com/dusk-network/jubjub-schnorr/issues/89
 [#88]: https://github.com/dusk-network/jubjub-schnorr/issues/88
