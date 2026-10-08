@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add known-answer vectors for multisignature transcript compatibility [#71]
 - Add MuSig-style delinearized key aggregation to multisig for
   rogue-key protection, with `aggregate_pk` function for computing
   the verification key
@@ -34,7 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change `multisig::sign_round_2`, `multisig::verify_share`,
   `multisig::combine` and `multisig::aggregate_pk` to reject an invalid
   participant public key, including the identity and small-order points [#89]
-- Update Criterion to 0.8 [#81]
 - Raise the MSRV to Rust 1.96.1 [#79]
 - Update `bs58` to 0.5 [#78]
 - Deduplicate multisignature aggregate-key derivation [#69]
@@ -64,8 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   affine-normalized generator [#88]
 - Constrain variable-generator signature responses to canonical JubJub scalars
   in `verify_signature_var_gen` [#86]
-- Pin the absent secret-key ordering and implicit-copy trait diagnostics [#63]
-- Pin the absent `Copy` trait diagnostic for `SecretKey` [#12]
 - Include all features and targets in Clippy checks [#64]
 - Reject empty or mismatched participant vectors in `multisig::combine` [#58]
 - Check that reusing a consumed `MultisigNonce` emits E0382 [#60]
@@ -159,12 +155,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#89]: https://github.com/dusk-network/jubjub-schnorr/issues/89
 [#88]: https://github.com/dusk-network/jubjub-schnorr/issues/88
 [#86]: https://github.com/dusk-network/jubjub-schnorr/issues/86
-[#81]: https://github.com/dusk-network/jubjub-schnorr/issues/81
 [#79]: https://github.com/dusk-network/jubjub-schnorr/issues/79
 [#78]: https://github.com/dusk-network/jubjub-schnorr/issues/78
-[#71]: https://github.com/dusk-network/jubjub-schnorr/issues/71
 [#69]: https://github.com/dusk-network/jubjub-schnorr/issues/69
-[#63]: https://github.com/dusk-network/jubjub-schnorr/issues/63
 [#64]: https://github.com/dusk-network/jubjub-schnorr/issues/64
 [#65]: https://github.com/dusk-network/jubjub-schnorr/issues/65
 [#58]: https://github.com/dusk-network/jubjub-schnorr/issues/58
