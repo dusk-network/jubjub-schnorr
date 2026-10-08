@@ -177,7 +177,9 @@ pub fn aggregate_pk(pk_vec: &[PublicKey]) -> Result<PublicKey, Error> {
     if pk_vec.is_empty() || has_invalid_key(pk_vec) {
         return Err(Error::InvalidMultisigTranscript);
     }
-    Ok(PublicKey::from(aggregate_key(pk_vec).point))
+    Ok(PublicKey::from(
+        aggregate_key(pk_vec, &hash_inputs(pk_vec)).point,
+    ))
 }
 
 /// Performs the first round to sign a message using the
@@ -220,7 +222,7 @@ pub fn sign_round_1<R>(
 where
     R: RngCore + CryptoRng,
 {
-    let transcript = transcript_digest(pk_vec, msg);
+    let transcript = transcript_digest(&hash_inputs(pk_vec), msg);
     let [r, s] = crate::nonce::hedged_multisig_nonces(
         rng,
         sk.as_ref(),
@@ -273,7 +275,8 @@ pub fn sign_round_2(
     if pk_vec.len() != R_vec.len() || R_vec.len() != S_vec.len() {
         return Err(Error::InvalidMultisigTranscript);
     }
-    if transcript_digest(pk_vec, msg) != nonce.transcript
+    let keys = hash_inputs(pk_vec);
+    if transcript_digest(&keys, msg) != nonce.transcript
         || has_invalid_key(pk_vec)
     {
         return Err(Error::InvalidMultisigTranscript);
@@ -300,7 +303,7 @@ pub fn sign_round_2(
         }
     }
 
-    let coefficients = multisig_common(pk_vec, R_vec, S_vec, msg);
+    let coefficients = multisig_common(pk_vec, &keys, R_vec, S_vec, msg);
     let d_i = coefficients.aggregate_key.delinearization[signer_index];
 
     // Compute the share z = r + s * a - c * d_i * sk
@@ -354,7 +357,8 @@ pub fn verify_share(
         return Err(Error::InvalidMultisigTranscript);
     }
 
-    let coefficients = multisig_common(pk_vec, R_vec, S_vec, msg);
+    let coefficients =
+        multisig_common(pk_vec, &hash_inputs(pk_vec), R_vec, S_vec, msg);
     verify_share_with_coefficients(
         share,
         participant_index,
@@ -403,7 +407,8 @@ pub fn combine(
         return Err(Error::InvalidMultisigTranscript);
     }
 
-    let coefficients = multisig_common(pk_vec, R_vec, S_vec, msg);
+    let coefficients =
+        multisig_common(pk_vec, &hash_inputs(pk_vec), R_vec, S_vec, msg);
 
     for (participant_index, share) in z_vec.iter().enumerate() {
         verify_share_with_coefficients(
@@ -426,18 +431,26 @@ pub fn combine(
 /// and ordered public keys.
 const TRANSCRIPT_DOMAIN: u64 = u64::from_be_bytes(*b"JJSCHMTX");
 
-/// Digest of the message and the ordered public keys that round one binds
-/// its nonces to and round two checks:
+/// Digest of the message and the ordered public keys, as [`hash_inputs`],
+/// that round one binds its nonces to and round two checks:
 ///
 /// t = H(tag, m, pk_1, pk_2, ..., pk_n)
-fn transcript_digest(pk_vec: &[PublicKey], msg: &BlsScalar) -> BlsScalar {
-    let mut preimage = Vec::with_capacity(2 + 2 * pk_vec.len());
+fn transcript_digest(keys: &[[BlsScalar; 2]], msg: &BlsScalar) -> BlsScalar {
+    let mut preimage = Vec::with_capacity(2 + 2 * keys.len());
     preimage.push(BlsScalar::from(TRANSCRIPT_DOMAIN));
     preimage.push(*msg);
-    for pk in pk_vec {
-        preimage.extend(pk.as_ref().to_hash_inputs());
-    }
+    preimage.extend(keys.iter().flatten());
     Hash::digest(Domain::Other, &preimage)[0]
+}
+
+/// The affine coordinates of each public key, which the transcript digest and
+/// every delinearization coefficient hash. A conversion to affine costs a field
+/// inversion, so each key is converted once and its coordinates are shared.
+fn hash_inputs(pk_vec: &[PublicKey]) -> Vec<[BlsScalar; 2]> {
+    pk_vec
+        .iter()
+        .map(|pk| pk.as_ref().to_hash_inputs())
+        .collect()
 }
 
 /// Identity and small-order keys satisfy share verification without any
@@ -474,22 +487,16 @@ fn verify_share_with_coefficients(
 }
 
 /// Computes the delinearization coefficient for a signer's public key
-/// given the full set of public keys.
+/// given the full set of public keys, all as [`hash_inputs`].
 ///
 /// d_i = H(pk_i, pk_1, pk_2, ..., pk_n)
 fn delinearization_coeff(
-    pk_i: &PublicKey,
-    pk_vec: &[PublicKey],
+    pk_i: &[BlsScalar; 2],
+    keys: &[[BlsScalar; 2]],
 ) -> JubJubScalar {
-    let mut preimage = vec![];
-    let pk_i_coords = pk_i.as_ref().to_hash_inputs();
-    preimage.push(pk_i_coords[0]);
-    preimage.push(pk_i_coords[1]);
-    for pk in pk_vec {
-        let coords = pk.as_ref().to_hash_inputs();
-        preimage.push(coords[0]);
-        preimage.push(coords[1]);
-    }
+    let mut preimage = Vec::with_capacity(2 + 2 * keys.len());
+    preimage.extend(pk_i);
+    preimage.extend(keys.iter().flatten());
     Hash::digest_truncated(Domain::Other, &preimage)[0]
 }
 
@@ -498,11 +505,14 @@ struct AggregateKey {
     point: JubJubExtended,
 }
 
-fn aggregate_key(pk_vec: &[PublicKey]) -> AggregateKey {
+fn aggregate_key(
+    pk_vec: &[PublicKey],
+    keys: &[[BlsScalar; 2]],
+) -> AggregateKey {
     let mut delinearization = Vec::with_capacity(pk_vec.len());
     let mut point = JubJubExtended::default();
-    for pk in pk_vec {
-        let d = delinearization_coeff(pk, pk_vec);
+    for (pk, key) in pk_vec.iter().zip(keys) {
+        let d = delinearization_coeff(key, keys);
         delinearization.push(d);
         point += pk.as_ref() * d;
     }
@@ -524,13 +534,14 @@ struct MultisigCoefficients {
 /// of the multisignature scheme
 fn multisig_common(
     pk_vec: &[PublicKey],
+    keys: &[[BlsScalar; 2]],
     R_vec: &[JubJubExtended],
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
 ) -> MultisigCoefficients {
     // Compute the delinearized aggregate key
     // pk = d_1 * pk_1 + d_2 * pk_2 + ... + d_n * pk_n
-    let aggregate_key = aggregate_key(pk_vec);
+    let aggregate_key = aggregate_key(pk_vec, keys);
 
     // Compute the hash
     // a = H(pk || m || R_1 || S_1 || R_2 || S_2 || ... || R_n || S_n)
@@ -596,7 +607,8 @@ mod tests {
 
     use super::{
         MultisigNonce, aggregate_pk, combine, delinearization_coeff,
-        multisig_common, sign_round_1, sign_round_2, transcript_digest,
+        hash_inputs, multisig_common, sign_round_1, sign_round_2,
+        transcript_digest,
     };
     use crate::{PublicKey, SecretKey};
 
@@ -797,18 +809,24 @@ mod tests {
         assert_eq!(r_points.each_ref().map(point_bytes), R_POINTS);
         assert_eq!(s_points.each_ref().map(point_bytes), S_POINTS);
 
-        let transcript =
-            multisig_common(&public_keys, &r_points, &s_points, &message);
+        let keys = hash_inputs(&public_keys);
+        let transcript = multisig_common(
+            &public_keys,
+            &keys,
+            &r_points,
+            &s_points,
+            &message,
+        );
         assert_eq!(
             transcript.aggregate_key.delinearization.len(),
             DELINEARIZATION.len()
         );
-        for ((pk_i, d_i), expected) in public_keys
+        for ((pk_i, d_i), expected) in keys
             .iter()
             .zip(&transcript.aggregate_key.delinearization)
             .zip(DELINEARIZATION)
         {
-            assert_eq!(*d_i, delinearization_coeff(pk_i, &public_keys));
+            assert_eq!(*d_i, delinearization_coeff(pk_i, &keys));
             assert_eq!(d_i.to_bytes(), expected);
         }
         assert_eq!(
@@ -832,7 +850,7 @@ mod tests {
                 MultisigNonce {
                     r: r_scalars[index],
                     s: s_scalars[index],
-                    transcript: transcript_digest(&public_keys, &message),
+                    transcript: transcript_digest(&keys, &message),
                 },
                 &public_keys,
                 &r_points,
@@ -882,6 +900,7 @@ mod tests {
         let sk = SecretKey::from(JubJubScalar::from(7u64));
         let co_signer = SecretKey::from(JubJubScalar::from(11u64));
         let pk_vec = [PublicKey::from(&sk), PublicKey::from(&co_signer)];
+        let keys = hash_inputs(&pk_vec);
         let mut rng = StdRng::seed_from_u64(59);
 
         let [mut z, mut a, mut cd] = [[JubJubScalar::zero(); 3]; 3];
@@ -889,7 +908,8 @@ mod tests {
             let (_, R_co, S_co) =
                 sign_round_1(&mut rng, &co_signer, &pk_vec, msg, None);
             let (R_vec, S_vec) = ([R, R_co], [S, S_co]);
-            let coefficients = multisig_common(&pk_vec, &R_vec, &S_vec, msg);
+            let coefficients =
+                multisig_common(&pk_vec, &keys, &R_vec, &S_vec, msg);
 
             z[i] = sign_round_2(&sk, nonce, &pk_vec, &R_vec, &S_vec, msg)
                 .expect("valid transcript");
@@ -921,7 +941,7 @@ mod tests {
         let shared = msgs.each_ref().map(|msg| {
             let r = JubJubScalar::from(13u64);
             let s = JubJubScalar::from(17u64);
-            let transcript = transcript_digest(&pk_vec, msg);
+            let transcript = transcript_digest(&hash_inputs(&pk_vec), msg);
             let nonce = MultisigNonce { r, s, transcript };
             (nonce, GENERATOR_EXTENDED * r, GENERATOR_EXTENDED * s)
         });
