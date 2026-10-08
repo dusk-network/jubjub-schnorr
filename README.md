@@ -12,7 +12,9 @@ The implementation has been created using the [`jubjub`](https://github.com/dusk
 
 The signature scheme is implemented within the [Phoenix](https://github.com/dusk-network/phoenix-core/blob/master/docs/protocol-description.pdf) transaction model and is based on the Schnorr Sigma protocol, compiled alongside the Fiat–Shamir transformation, to serve as a non-interactive signature scheme. Specifically, the Phoenix protocol employs a variant that utilizes double Schnorr signatures, verifiable with double public keys, enabling the delegation of computational processes within the protocol's later stages.
 
-The repository also includes an implementation of the `SpeedyMuSig` Schnorr-based multisignature scheme described [here](https://eprint.iacr.org/2021/1375.pdf) (pag. 19). It allows several signers to create a signature that proves a message to be signed by them all, given their public keys. The signature can be verified using the same function used for the standard Schnorr signature, using the sum of all the signers' public keys.
+The repository also includes an implementation of the `SpeedyMuSig` Schnorr-based multisignature scheme described [here](https://eprint.iacr.org/2021/1375.pdf) (pag. 19), with MuSig-style delinearized key aggregation. It allows several signers to create a signature that proves a message to be signed by them all, given their public keys. The signature can be verified using the same function used for the standard Schnorr signature, using the aggregate public key from `multisig::aggregate_pk`: the sum of the signers' public keys, each weighted by a coefficient that hashes all of them.
+
+In the first round, each signer derives its two nonces from fresh randomness, its secret key, the message, the ordered public keys and an optional session input. The second round rejects a nonce state produced for another message or key list. `sign_round_2`, `verify_share`, `combine` and `aggregate_pk` reject an invalid public key, such as the identity or a small-order point, and a repeated one.
 
 ## Library Structure
 The library is partitioned into the following components:

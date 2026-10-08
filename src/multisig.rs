@@ -51,9 +51,19 @@
 //!
 //! let pk_vec = vec![pk_1, pk_2];
 //!
-//! // First round: all signers compute the following elements
-//! let (nonce_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
-//! let (nonce_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
+//! // First round: all signers compute the following elements for the
+//! // message and the ordered public keys. A signer may also pass a session
+//! // input, such as a counter of its signing attempts.
+//! let attempt = BlsScalar::from(1u64);
+//! let (nonce_1, R_1, S_1) = multisig::sign_round_1(
+//!     &mut rng,
+//!     &sk_1,
+//!     &pk_vec,
+//!     &message,
+//!     Some(&attempt),
+//! );
+//! let (nonce_2, R_2, S_2) =
+//!     multisig::sign_round_1(&mut rng, &sk_2, &pk_vec, &message, None);
 //!
 //! // All signers share `R_vec` and `S_vec` with all the other signers
 //! let R_vec = vec![R_1, R_2];
@@ -99,7 +109,7 @@ use alloc::vec::Vec;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{GENERATOR_EXTENDED, JubJubExtended, JubJubScalar};
-use ff::Field;
+use dusk_poseidon::{Domain, Hash};
 use rand_core::{CryptoRng, RngCore};
 use zeroize::Zeroize;
 
@@ -107,6 +117,9 @@ use crate::{Error, PublicKey, SecretKey, Signature};
 
 /// Secret nonce state produced by [`sign_round_1`] and consumed by
 /// [`sign_round_2`].
+///
+/// The state is bound to the message and the ordered public keys it was
+/// produced for, and [`sign_round_2`] rejects it for any other.
 ///
 /// The state deliberately implements neither [`Clone`] nor [`Copy`]. Its
 /// scalar fields owned by this state are zeroized whenever it is consumed or
@@ -124,7 +137,8 @@ use crate::{Error, PublicKey, SecretKey, Signature};
 /// let sk = SecretKey::random(&mut rng);
 /// let pk = PublicKey::from(&sk);
 /// let message = BlsScalar::from(11u64);
-/// let (nonce, r, s) = multisig::sign_round_1(&mut rng);
+/// let (nonce, r, s) =
+///     multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
 ///
 /// let _ = multisig::sign_round_2(&sk, nonce, &[pk], &[r], &[s], &message);
 /// let _ = multisig::sign_round_2(&sk, nonce, &[pk], &[r], &[s], &message);
@@ -133,6 +147,7 @@ use crate::{Error, PublicKey, SecretKey, Signature};
 pub struct MultisigNonce {
     r: JubJubScalar,
     s: JubJubScalar,
+    transcript: BlsScalar,
 }
 
 impl Drop for MultisigNonce {
@@ -168,29 +183,56 @@ pub fn aggregate_pk(pk_vec: &[PublicKey]) -> Result<PublicKey, Error> {
 /// Performs the first round to sign a message using the
 /// multisignature scheme
 ///
+/// Both nonces hash fresh RNG output together with the secret key, the
+/// message, the ordered public keys and the session input, if any, so
+/// repeated RNG output repeats them only when all of these repeat too. The
+/// RNG must still be cryptographically secure.
+///
 /// ## Parameters
 ///
 /// - `rng`: Reference to the random number generator.
+/// - `sk`: Reference to the signer's secret key.
+/// - `pk_vec`: Ordered vector of public keys, as later passed to
+///   [`sign_round_2`].
+/// - `msg`: Message to sign, as later passed to [`sign_round_2`].
+/// - `session`: Optional value that both nonces also hash, such as a counter or
+///   a session identifier. It keeps the nonces of two attempts to sign the same
+///   message with the same key list apart if the RNG repeats its output. It
+///   need not be secret, and only this signer's round one uses it. A value
+///   unique to each signing attempt is best. If the RNG repeats and `session`
+///   is `None` or repeated, a co-signer that forces three signing attempts on
+///   the same message and key list recovers the secret key.
 ///
 /// ## Returns
 ///
 /// Returns an opaque one-shot [`MultisigNonce`] and the public commitment
 /// points `(R, S)`.
+///
+/// Round one does not validate `pk_vec`: [`sign_round_2`] does, and rejects
+/// the state for any other message or key list.
 pub fn sign_round_1<R>(
-    mut rng: &mut R,
+    rng: &mut R,
+    sk: &SecretKey,
+    pk_vec: &[PublicKey],
+    msg: &BlsScalar,
+    session: Option<&BlsScalar>,
 ) -> (MultisigNonce, JubJubExtended, JubJubExtended)
 where
     R: RngCore + CryptoRng,
 {
-    // Sample two random values (r, s)
-    let r = JubJubScalar::random(&mut rng);
-    let s = JubJubScalar::random(&mut rng);
+    let transcript = transcript_digest(pk_vec, msg);
+    let [r, s] = crate::nonce::hedged_multisig_nonces(
+        rng,
+        sk.as_ref(),
+        transcript,
+        session,
+    );
 
     // Compute R = r * G, S = s * G
     let R = GENERATOR_EXTENDED * r;
     let S = GENERATOR_EXTENDED * s;
 
-    (MultisigNonce { r, s }, R, S)
+    (MultisigNonce { r, s, transcript }, R, S)
 }
 
 /// Performs the second round to sign a message using the
@@ -199,7 +241,8 @@ where
 /// ## Parameters
 ///
 /// - `sk`: Reference to the secret key.
-/// - `nonce`: One-shot secret nonce state returned by [`sign_round_1`].
+/// - `nonce`: One-shot secret nonce state returned by [`sign_round_1`] for
+///   `pk_vec` and `msg`.
 /// - `pk_vec`: Ordered vector of public keys; the signer's key must occur
 ///   exactly once.
 /// - `R_vec`: Vector of R values, index-aligned with `pk_vec`.
@@ -213,9 +256,10 @@ where
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors do
-/// not have equal lengths, any public key is invalid or repeated, the signer
-/// key is not in the key list, or this state does not match the signer's
-/// commitment slot. Returns
+/// not have equal lengths, `pk_vec` or `msg` differ from those passed to
+/// [`sign_round_1`] for this state, any public key is invalid or repeated, the
+/// signer key is not in the key list, or this state does not match the
+/// signer's commitment slot. Returns
 /// [`Error::DuplicatedNonce`] if any two participants supplied the same `R` or
 /// `S` commitment.
 pub fn sign_round_2(
@@ -226,8 +270,10 @@ pub fn sign_round_2(
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
 ) -> Result<JubJubScalar, Error> {
-    if pk_vec.len() != R_vec.len()
-        || R_vec.len() != S_vec.len()
+    if pk_vec.len() != R_vec.len() || R_vec.len() != S_vec.len() {
+        return Err(Error::InvalidMultisigTranscript);
+    }
+    if transcript_digest(pk_vec, msg) != nonce.transcript
         || has_invalid_key(pk_vec)
     {
         return Err(Error::InvalidMultisigTranscript);
@@ -376,6 +422,24 @@ pub fn combine(
     Ok(Signature::new(u, coefficients.aggregate_commitment))
 }
 
+/// Domain tag of the digest that binds a round-one nonce state to its message
+/// and ordered public keys.
+const TRANSCRIPT_DOMAIN: u64 = u64::from_be_bytes(*b"JJSCHMTX");
+
+/// Digest of the message and the ordered public keys that round one binds
+/// its nonces to and round two checks:
+///
+/// t = H(tag, m, pk_1, pk_2, ..., pk_n)
+fn transcript_digest(pk_vec: &[PublicKey], msg: &BlsScalar) -> BlsScalar {
+    let mut preimage = Vec::with_capacity(2 + 2 * pk_vec.len());
+    preimage.push(BlsScalar::from(TRANSCRIPT_DOMAIN));
+    preimage.push(*msg);
+    for pk in pk_vec {
+        preimage.extend(pk.as_ref().to_hash_inputs());
+    }
+    Hash::digest(Domain::Other, &preimage)[0]
+}
+
 /// Identity and small-order keys satisfy share verification without any
 /// secret, and a repeated key lets one secret sign for several entries, so
 /// either counts participants that never signed.
@@ -417,8 +481,6 @@ fn delinearization_coeff(
     pk_i: &PublicKey,
     pk_vec: &[PublicKey],
 ) -> JubJubScalar {
-    use dusk_poseidon::{Domain, Hash};
-
     let mut preimage = vec![];
     let pk_i_coords = pk_i.as_ref().to_hash_inputs();
     preimage.push(pk_i_coords[0]);
@@ -466,8 +528,6 @@ fn multisig_common(
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
 ) -> MultisigCoefficients {
-    use dusk_poseidon::{Domain, Hash};
-
     // Compute the delinearized aggregate key
     // pk = d_1 * pk_1 + d_2 * pk_2 + ... + d_n * pk_n
     let aggregate_key = aggregate_key(pk_vec);
@@ -529,13 +589,43 @@ mod tests {
     use dusk_jubjub::{
         GENERATOR_EXTENDED, JubJubAffine, JubJubExtended, JubJubScalar,
     };
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+    use rand_core::{CryptoRng, RngCore};
     use zeroize::Zeroize;
 
     use super::{
         MultisigNonce, aggregate_pk, combine, delinearization_coeff,
-        multisig_common, sign_round_2,
+        multisig_common, sign_round_1, sign_round_2, transcript_digest,
     };
     use crate::{PublicKey, SecretKey};
+
+    /// An RNG that fills every buffer with the same byte.
+    struct ConstRng(u8);
+
+    impl RngCore for ConstRng {
+        fn next_u32(&mut self) -> u32 {
+            u32::from_le_bytes([self.0; 4])
+        }
+
+        fn next_u64(&mut self) -> u64 {
+            u64::from_le_bytes([self.0; 8])
+        }
+
+        fn fill_bytes(&mut self, dest: &mut [u8]) {
+            dest.fill(self.0);
+        }
+
+        fn try_fill_bytes(
+            &mut self,
+            dest: &mut [u8],
+        ) -> Result<(), rand_core::Error> {
+            self.fill_bytes(dest);
+            Ok(())
+        }
+    }
+
+    impl CryptoRng for ConstRng {}
 
     fn point_bytes(point: &JubJubExtended) -> [u8; 32] {
         JubJubAffine::from(*point).to_bytes()
@@ -742,6 +832,7 @@ mod tests {
                 MultisigNonce {
                     r: r_scalars[index],
                     s: s_scalars[index],
+                    transcript: transcript_digest(&public_keys, &message),
                 },
                 &public_keys,
                 &r_points,
@@ -761,15 +852,106 @@ mod tests {
     }
 
     #[test]
-    fn nonce_state_zeroizes_both_scalars() {
+    fn nonce_state_zeroizes_every_field() {
         let mut nonce = MultisigNonce {
             r: JubJubScalar::from(41u64),
             s: JubJubScalar::from(43u64),
+            transcript: BlsScalar::from(47u64),
         };
 
         nonce.zeroize();
 
         assert_eq!(nonce.r, JubJubScalar::zero());
         assert_eq!(nonce.s, JubJubScalar::zero());
+        assert_eq!(nonce.transcript, BlsScalar::zero());
+    }
+
+    type RoundOne = (MultisigNonce, JubJubExtended, JubJubExtended);
+
+    /// Runs three sessions of the signer `sk = 7`, with the given round-one
+    /// outputs, next to a co-signer that commits afresh in each.
+    ///
+    /// The signer's shares `z_i = r + a_i * s - c_i * d * sk` are three linear
+    /// equations. If the sessions share `(r, s)`, they determine `sk`. Returns
+    /// their solution.
+    #[allow(non_snake_case)]
+    fn solve_shares_for_key(
+        msgs: [BlsScalar; 3],
+        round_1: [RoundOne; 3],
+    ) -> JubJubScalar {
+        let sk = SecretKey::from(JubJubScalar::from(7u64));
+        let co_signer = SecretKey::from(JubJubScalar::from(11u64));
+        let pk_vec = [PublicKey::from(&sk), PublicKey::from(&co_signer)];
+        let mut rng = StdRng::seed_from_u64(59);
+
+        let [mut z, mut a, mut cd] = [[JubJubScalar::zero(); 3]; 3];
+        for (i, (msg, (nonce, R, S))) in msgs.iter().zip(round_1).enumerate() {
+            let (_, R_co, S_co) =
+                sign_round_1(&mut rng, &co_signer, &pk_vec, msg, None);
+            let (R_vec, S_vec) = ([R, R_co], [S, S_co]);
+            let coefficients = multisig_common(&pk_vec, &R_vec, &S_vec, msg);
+
+            z[i] = sign_round_2(&sk, nonce, &pk_vec, &R_vec, &S_vec, msg)
+                .expect("valid transcript");
+            a[i] = coefficients.a;
+            cd[i] =
+                coefficients.c * coefficients.aggregate_key.delinearization[0];
+        }
+
+        // Eliminate r, then s.
+        let [dz2, dz3] = [z[1] - z[0], z[2] - z[0]];
+        let [da2, da3] = [a[1] - a[0], a[2] - a[0]];
+        let [dcd2, dcd3] = [cd[1] - cd[0], cd[2] - cd[0]];
+        (dz3 * da2 - dz2 * da3)
+            * (da3 * dcd2 - da2 * dcd3)
+                .invert()
+                .expect("independent equations")
+    }
+
+    /// Shared nonces over three messages give away the key. Under a constant
+    /// RNG, round one derives a fresh pair for each message instead, and the
+    /// same solution misses the key.
+    #[test]
+    fn three_shares_fix_the_key_only_with_shared_nonces() {
+        let sk = SecretKey::from(JubJubScalar::from(7u64));
+        let co_signer = SecretKey::from(JubJubScalar::from(11u64));
+        let pk_vec = [PublicKey::from(&sk), PublicKey::from(&co_signer)];
+        let msgs = [1u64, 2, 3].map(BlsScalar::from);
+
+        let shared = msgs.each_ref().map(|msg| {
+            let r = JubJubScalar::from(13u64);
+            let s = JubJubScalar::from(17u64);
+            let transcript = transcript_digest(&pk_vec, msg);
+            let nonce = MultisigNonce { r, s, transcript };
+            (nonce, GENERATOR_EXTENDED * r, GENERATOR_EXTENDED * s)
+        });
+        assert_eq!(solve_shares_for_key(msgs, shared), *sk.as_ref());
+
+        let hedged = msgs.each_ref().map(|msg| {
+            sign_round_1(&mut ConstRng(0x42), &sk, &pk_vec, msg, None)
+        });
+        assert_ne!(solve_shares_for_key(msgs, hedged), *sk.as_ref());
+    }
+
+    /// Under a constant RNG, three attempts to sign one message with one key
+    /// list share their nonces, and give away the key, unless each attempt
+    /// passes its own session input.
+    #[test]
+    fn session_inputs_separate_attempts_at_one_transcript() {
+        let sk = SecretKey::from(JubJubScalar::from(7u64));
+        let co_signer = SecretKey::from(JubJubScalar::from(11u64));
+        let pk_vec = [PublicKey::from(&sk), PublicKey::from(&co_signer)];
+        let msg = BlsScalar::from(1u64);
+        let sessions = [1u64, 2, 3].map(BlsScalar::from);
+        let attempts = |sessions: [Option<&BlsScalar>; 3]| {
+            let round_1 = sessions.map(|session| {
+                sign_round_1(&mut ConstRng(0x42), &sk, &pk_vec, &msg, session)
+            });
+            solve_shares_for_key([msg; 3], round_1)
+        };
+
+        assert_eq!(attempts([None; 3]), *sk.as_ref());
+        assert_eq!(attempts([Some(&sessions[0]); 3]), *sk.as_ref());
+        assert_ne!(attempts(sessions.each_ref().map(Some)), *sk.as_ref());
     }
 }

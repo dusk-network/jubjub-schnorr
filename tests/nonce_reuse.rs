@@ -167,6 +167,156 @@ fn hedged_nonce_known_answers() {
     assert_eq!(point(sig.R()), VAR_GEN_R);
 }
 
+/// Under a constant RNG, multisignature round one still derives different
+/// nonces for a different message, ordered key list or signer, and different
+/// nonces for its two commitments. Honest signing still completes.
+#[cfg(feature = "alloc")]
+#[test]
+#[allow(non_snake_case)]
+fn multisig_round_one_separates_transcripts() {
+    use jubjub_schnorr::multisig;
+
+    let [sk_a, sk_b, sk_c] =
+        [3u64, 5, 7].map(|n| SecretKey::from(JubJubScalar::from(n)));
+    let [a, b, c] = [&sk_a, &sk_b, &sk_c].map(PublicKey::from);
+    let msg = BlsScalar::from(31u64);
+    let round_1 = |sk: &SecretKey, pk_vec: &[PublicKey], msg: BlsScalar| {
+        multisig::sign_round_1(&mut ConstRng(0x42), sk, pk_vec, &msg, None)
+    };
+
+    let (nonce_a, R_a, S_a) = round_1(&sk_a, &[a, b], msg);
+    assert_ne!(R_a, S_a);
+    for (_, R, S) in [
+        round_1(&sk_a, &[a, b], BlsScalar::from(32u64)),
+        round_1(&sk_a, &[b, a], msg),
+        round_1(&sk_a, &[a, c], msg),
+        round_1(&sk_a, &[a, b, c], msg),
+        round_1(&sk_b, &[a, b], msg),
+    ] {
+        for point in [R, S] {
+            assert!(point != R_a && point != S_a);
+        }
+    }
+
+    // Without a session input, the RNG output is the only input that varies
+    // between attempts at the same key and transcript.
+    let (_, R, S) = round_1(&sk_a, &[a, b], msg);
+    assert_eq!((R, S), (R_a, S_a));
+
+    let (nonce_b, R_b, S_b) = round_1(&sk_b, &[a, b], msg);
+    let (pk_vec, R_vec, S_vec) = ([a, b], [R_a, R_b], [S_a, S_b]);
+    let shares = [
+        multisig::sign_round_2(&sk_a, nonce_a, &pk_vec, &R_vec, &S_vec, &msg),
+        multisig::sign_round_2(&sk_b, nonce_b, &pk_vec, &R_vec, &S_vec, &msg),
+    ]
+    .map(|share| share.expect("honest shares"));
+    let signature =
+        multisig::combine(&shares, &pk_vec, &R_vec, &S_vec, &msg).unwrap();
+    let pk = multisig::aggregate_pk(&pk_vec).unwrap();
+    assert!(pk.verify(&signature, msg).is_ok());
+}
+
+/// Under a constant RNG, a session input changes both nonces of
+/// multisignature round one for the same key and transcript. No session input
+/// differs from every session input, and every session input from every
+/// other. Honest signing still completes with and without one.
+#[cfg(feature = "alloc")]
+#[test]
+#[allow(non_snake_case)]
+fn multisig_round_one_separates_session_inputs() {
+    use jubjub_schnorr::multisig;
+
+    let [sk_a, sk_b] =
+        [3u64, 5].map(|n| SecretKey::from(JubJubScalar::from(n)));
+    let pk_vec = [&sk_a, &sk_b].map(PublicKey::from);
+    let msg = BlsScalar::from(31u64);
+    let round_1 = |sk: &SecretKey, session: Option<&BlsScalar>| {
+        multisig::sign_round_1(&mut ConstRng(0x42), sk, &pk_vec, &msg, session)
+    };
+
+    // Zero, and the sponge tags 3 and 4 of the known answers below, included.
+    let sessions = [0u64, 1, 2, 3, 4].map(BlsScalar::from);
+    let mut seen = Vec::new();
+    for session in [None].into_iter().chain(sessions.iter().map(Some)) {
+        let (_, R, S) = round_1(&sk_a, session);
+        assert!(R != S && !seen.contains(&R) && !seen.contains(&S));
+        seen.extend([R, S]);
+    }
+
+    // The RNG output and the session input are the only inputs that vary
+    // between attempts at the same key and transcript.
+    let (nonce_a, R_a, S_a) = round_1(&sk_a, Some(&sessions[1]));
+    assert_eq!([R_a, S_a], seen[4..6]);
+
+    let (nonce_b, R_b, S_b) = round_1(&sk_b, None);
+    let (R_vec, S_vec) = ([R_a, R_b], [S_a, S_b]);
+    let shares = [
+        multisig::sign_round_2(&sk_a, nonce_a, &pk_vec, &R_vec, &S_vec, &msg),
+        multisig::sign_round_2(&sk_b, nonce_b, &pk_vec, &R_vec, &S_vec, &msg),
+    ]
+    .map(|share| share.expect("honest shares"));
+    let signature =
+        multisig::combine(&shares, &pk_vec, &R_vec, &S_vec, &msg).unwrap();
+    let pk = multisig::aggregate_pk(&pk_vec).unwrap();
+    assert!(pk.verify(&signature, msg).is_ok());
+}
+
+/// Known answers for multisignature round one, with `sk = 3`, public keys
+/// `3G, 5G, 7G` in that order, `msg = 31`, every RNG byte `0x42`, and either
+/// no session input or the session input `41`.
+///
+/// They were derived without this crate. The transcript digest `t` is the
+/// Poseidon `Domain::Other` digest of `tag, msg, pk_1.u, pk_1.v, ...,
+/// pk_3.v`, where `tag` is `b"JJSCHMTX"` read as a big-endian integer.
+/// `random` is the 64 RNG bytes reduced modulo the JubJub order. `r` and `s`
+/// are the two outputs of one Poseidon `Domain::Other` sponge over `random,
+/// sk, 3, t` without a session input, or over `random, sk, 4, t, 41` with
+/// it, each reduced modulo the JubJub order. Points use the compressed
+/// affine encoding.
+#[cfg(feature = "alloc")]
+#[test]
+fn multisig_round_one_known_answer() {
+    const R: [u8; 32] = [
+        0x79, 0x9d, 0x3c, 0x37, 0x63, 0x2c, 0x63, 0x7a, 0x2a, 0x88, 0x89, 0x48,
+        0x56, 0xfb, 0x5f, 0x34, 0x5a, 0x92, 0xa8, 0xac, 0x4f, 0x8f, 0x85, 0x82,
+        0x0d, 0x7e, 0x90, 0x2e, 0xe2, 0x17, 0x80, 0xb9,
+    ];
+    const S: [u8; 32] = [
+        0xe1, 0x45, 0x2a, 0x7e, 0x24, 0xc7, 0x37, 0x5e, 0x44, 0xfa, 0xf6, 0xc2,
+        0x26, 0x00, 0x76, 0x3a, 0xfd, 0x03, 0x48, 0x22, 0x76, 0xaf, 0xba, 0x2b,
+        0xee, 0x4b, 0xa2, 0x71, 0x78, 0x28, 0x4c, 0x45,
+    ];
+    const R_SESSION: [u8; 32] = [
+        0x17, 0xc3, 0x04, 0x2f, 0x0c, 0x37, 0x00, 0xdb, 0x97, 0x1e, 0xc8, 0x5b,
+        0x9c, 0xce, 0x29, 0xb7, 0x77, 0x01, 0x0b, 0x11, 0xcb, 0x46, 0x4f, 0x3d,
+        0x8e, 0x35, 0xae, 0x29, 0xb7, 0x29, 0x57, 0xe9,
+    ];
+    const S_SESSION: [u8; 32] = [
+        0x86, 0xf7, 0x33, 0x5f, 0xe8, 0x73, 0xe8, 0x64, 0xd8, 0xa3, 0x3c, 0x68,
+        0x72, 0x06, 0x29, 0x07, 0x7e, 0x45, 0x76, 0xc0, 0xf6, 0x2a, 0x35, 0xeb,
+        0xa0, 0xa0, 0x71, 0xda, 0x1f, 0xc0, 0x9f, 0xd0,
+    ];
+
+    let sk = SecretKey::from(JubJubScalar::from(3u64));
+    let pk_vec = [3u64, 5, 7]
+        .map(|n| PublicKey::from(GENERATOR_EXTENDED * JubJubScalar::from(n)));
+    let msg = BlsScalar::from(31u64);
+    let session = BlsScalar::from(41u64);
+
+    for (session, expected) in
+        [(None, [R, S]), (Some(&session), [R_SESSION, S_SESSION])]
+    {
+        let (_, r, s) = jubjub_schnorr::multisig::sign_round_1(
+            &mut ConstRng(0x42),
+            &sk,
+            &pk_vec,
+            &msg,
+            session,
+        );
+        assert_eq!([r, s].map(|p| JubJubAffine::from(p).to_bytes()), expected);
+    }
+}
+
 /// With a broken RNG, signing two different messages must produce
 /// different nonces (different R values). If R values were the same,
 /// an attacker could recover the secret key.

@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change `multisig::sign_round_1` to take the signer's `SecretKey` and derive
+  both nonces from it and the RNG output [#59]
+- Change `multisig::sign_round_1` to take the message and the ordered
+  participant public keys, and bind both nonces to them [#99]
+- Change `multisig::sign_round_1` to take an optional session input and bind
+  both nonces to it [#99]
+- Change `multisig::sign_round_2` to reject a `MultisigNonce` produced for a
+  different message or ordered participant public keys [#99]
 - Change `gadgets::verify_signature`, `gadgets::verify_signature_double` and
   `gadgets::verify_signature_var_gen` to take public keys and the generator as
   `TorsionFreeWitnessPoint` [#50]
@@ -161,6 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#99]: https://github.com/dusk-network/jubjub-schnorr/issues/99
+[#59]: https://github.com/dusk-network/jubjub-schnorr/issues/59
 [#95]: https://github.com/dusk-network/jubjub-schnorr/issues/95
 [#87]: https://github.com/dusk-network/jubjub-schnorr/issues/87
 [#50]: https://github.com/dusk-network/jubjub-schnorr/issues/50

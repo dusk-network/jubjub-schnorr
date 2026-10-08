@@ -9,7 +9,9 @@
 //! Produces a nonce by hashing RNG output together with the secret key
 //! and message. This ensures that nonce reuse requires *both* a
 //! repeated RNG output *and* an identical (sk, message) pair —
-//! defending against weak or broken RNGs.
+//! defending against weak or broken RNGs. Multisignature nonces hash a
+//! digest of the message and the ordered public keys instead of the
+//! message, and an optional session input.
 //!
 //! The hash input and the Poseidon digest hold the secret key and the
 //! nonce, so both are wiped once the nonce is derived. Copies the compiler
@@ -33,6 +35,10 @@ use zeroize::{Zeroize, Zeroizing};
 /// challenge hashes.
 const TAG_STANDARD: BlsScalar = BlsScalar::from_raw([1, 0, 0, 0]);
 const TAG_DOUBLE: BlsScalar = BlsScalar::from_raw([2, 0, 0, 0]);
+#[cfg(feature = "alloc")]
+const TAG_MULTISIG: BlsScalar = BlsScalar::from_raw([3, 0, 0, 0]);
+#[cfg(feature = "alloc")]
+const TAG_MULTISIG_SESSION: BlsScalar = BlsScalar::from_raw([4, 0, 0, 0]);
 
 /// Generate a hedged nonce for the standard Schnorr signature.
 ///
@@ -92,6 +98,50 @@ where
         Zeroizing::new([rng_bls, sk_bls, gen_coords[0], gen_coords[1], msg]);
     let [nonce] = nonces(Hash::digest(Domain::Other, input.as_ref()));
     nonce
+}
+
+/// Generate the two hedged nonces of a multisignature signer.
+///
+/// `transcript` is the digest of the message and the ordered public keys.
+/// The two nonces are the first two outputs of one sponge, without or with a
+/// session input:
+///
+/// ```text
+/// [r, s] = H(random || sk || tag_multisig || transcript)
+/// [r, s] = H(random || sk || tag_multisig_session || transcript || session)
+/// ```
+///
+/// The two forms differ in their tag and in their length, which also sets the
+/// sponge's initial state, so an input with a session input never collides
+/// with one without.
+///
+/// Distinct outputs of one sponge are independent, so the nonces need no tags
+/// of their own: two separately tagged hashes would separate them no further,
+/// and would take twice the permutations.
+#[cfg(feature = "alloc")]
+pub(crate) fn hedged_multisig_nonces<R>(
+    rng: &mut R,
+    sk: &JubJubScalar,
+    transcript: BlsScalar,
+    session: Option<&BlsScalar>,
+) -> [JubJubScalar; 2]
+where
+    R: RngCore + CryptoRng,
+{
+    let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
+    let tag = match session {
+        Some(_) => TAG_MULTISIG_SESSION,
+        None => TAG_MULTISIG,
+    };
+    let input = Zeroizing::new([rng_bls, sk_bls, tag, transcript]);
+    let mut hash = Hash::new(Domain::Other);
+    hash.update(input.as_ref());
+    // The session input is not secret, so it stays out of the wiped buffer.
+    if let Some(session) = session {
+        hash.update(core::slice::from_ref(session));
+    }
+    hash.output_len(2);
+    nonces(hash.finalize())
 }
 
 /// Reduce each digest element modulo the JubJub scalar order and wipe the

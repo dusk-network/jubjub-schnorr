@@ -13,7 +13,8 @@ fn main() {
     let sk = SecretKey::random(&mut rng);
     let pk = PublicKey::from(&sk);
     let message = BlsScalar::from(11u64);
-    let (nonce, r, s) = multisig::sign_round_1(&mut rng);
+    let (nonce, r, s) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
 
     let _ = multisig::sign_round_2(&sk, nonce, &[pk], &[r], &[s], &message);
     let _ = multisig::sign_round_2(&sk, nonce, &[pk], &[r], &[s], &message);
