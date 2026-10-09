@@ -9,13 +9,23 @@
 //! Produces a nonce by hashing RNG output together with the secret key
 //! and message. This ensures that nonce reuse requires *both* a
 //! repeated RNG output *and* an identical (sk, message) pair —
-//! defending against weak or broken RNGs.
+//! defending against weak or broken RNGs. Multisignature nonces hash a
+//! digest of the message and the ordered public keys instead of the
+//! message, and an optional session input.
+//!
+//! The hash input and the Poseidon digest hold the secret key and the
+//! nonce, so both are wiped once the nonce is derived. Copies the compiler
+//! keeps in registers or on the stack are not.
+
+extern crate alloc;
+use alloc::vec::Vec;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_jubjub::{JubJubExtended, JubJubScalar};
 use dusk_poseidon::{Domain, Hash};
 use ff::Field;
 use rand_core::{CryptoRng, RngCore};
+use zeroize::{Zeroize, Zeroizing};
 
 /// Domain separator tags for variant-specific nonce derivation.
 ///
@@ -25,6 +35,10 @@ use rand_core::{CryptoRng, RngCore};
 /// challenge hashes.
 const TAG_STANDARD: BlsScalar = BlsScalar::from_raw([1, 0, 0, 0]);
 const TAG_DOUBLE: BlsScalar = BlsScalar::from_raw([2, 0, 0, 0]);
+#[cfg(feature = "alloc")]
+const TAG_MULTISIG: BlsScalar = BlsScalar::from_raw([3, 0, 0, 0]);
+#[cfg(feature = "alloc")]
+const TAG_MULTISIG_SESSION: BlsScalar = BlsScalar::from_raw([4, 0, 0, 0]);
 
 /// Generate a hedged nonce for the standard Schnorr signature.
 ///
@@ -39,8 +53,9 @@ where
 {
     let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
     // H(rng || sk || tag || msg) -> JubJubScalar
-    Hash::digest_truncated(Domain::Other, &[rng_bls, sk_bls, TAG_STANDARD, msg])
-        [0]
+    let input = Zeroizing::new([rng_bls, sk_bls, TAG_STANDARD, msg]);
+    let [nonce] = nonces(Hash::digest(Domain::Other, input.as_ref()));
+    nonce
 }
 
 /// Generate a hedged nonce for the double Schnorr signature.
@@ -56,8 +71,9 @@ where
 {
     let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
     // H(rng || sk || tag || msg) -> JubJubScalar
-    Hash::digest_truncated(Domain::Other, &[rng_bls, sk_bls, TAG_DOUBLE, msg])
-        [0]
+    let input = Zeroizing::new([rng_bls, sk_bls, TAG_DOUBLE, msg]);
+    let [nonce] = nonces(Hash::digest(Domain::Other, input.as_ref()));
+    nonce
 }
 
 /// Generate a hedged nonce for the variable-generator variant.
@@ -78,10 +94,69 @@ where
     let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
     let gen_coords = generator.to_hash_inputs();
     // H(rng || sk || gen_x || gen_y || msg) -> JubJubScalar
-    Hash::digest_truncated(
-        Domain::Other,
-        &[rng_bls, sk_bls, gen_coords[0], gen_coords[1], msg],
-    )[0]
+    let input =
+        Zeroizing::new([rng_bls, sk_bls, gen_coords[0], gen_coords[1], msg]);
+    let [nonce] = nonces(Hash::digest(Domain::Other, input.as_ref()));
+    nonce
+}
+
+/// Generate the two hedged nonces of a multisignature signer.
+///
+/// `transcript` is the digest of the message and the ordered public keys.
+/// The two nonces are the first two outputs of one sponge, without or with a
+/// session input:
+///
+/// ```text
+/// [r, s] = H(random || sk || tag_multisig || transcript)
+/// [r, s] = H(random || sk || tag_multisig_session || transcript || session)
+/// ```
+///
+/// The two forms differ in their tag and in their length, which also sets the
+/// sponge's initial state, so an input with a session input never collides
+/// with one without.
+///
+/// Distinct outputs of one sponge are independent, so the nonces need no tags
+/// of their own: two separately tagged hashes would separate them no further,
+/// and would take twice the permutations.
+#[cfg(feature = "alloc")]
+pub(crate) fn hedged_multisig_nonces<R>(
+    rng: &mut R,
+    sk: &JubJubScalar,
+    transcript: BlsScalar,
+    session: Option<&BlsScalar>,
+) -> [JubJubScalar; 2]
+where
+    R: RngCore + CryptoRng,
+{
+    let (rng_bls, sk_bls) = prepare_inputs(rng, sk);
+    let tag = match session {
+        Some(_) => TAG_MULTISIG_SESSION,
+        None => TAG_MULTISIG,
+    };
+    let input = Zeroizing::new([rng_bls, sk_bls, tag, transcript]);
+    let mut hash = Hash::new(Domain::Other);
+    hash.update(input.as_ref());
+    // The session input is not secret, so it stays out of the wiped buffer.
+    if let Some(session) = session {
+        hash.update(core::slice::from_ref(session));
+    }
+    hash.output_len(2);
+    nonces(hash.finalize())
+}
+
+/// Reduce each digest element modulo the JubJub scalar order and wipe the
+/// digest.
+///
+/// The BLS12-381 scalar modulus exceeds eight times the JubJub order by less
+/// than 2^126, so a uniform digest reduces to a nonce within 2^-129 of
+/// uniform.
+/// Truncating the digest to 250 bits, as `Hash::digest_truncated` does,
+/// would only reach the nonces below 2^250, about 28% of the scalars.
+fn nonces<const N: usize>(digest: Vec<BlsScalar>) -> [JubJubScalar; N] {
+    let digest = Zeroizing::new(digest);
+    core::array::from_fn(|i| {
+        JubJubScalar::from_bytes_wide(&widen(digest[i].to_bytes()))
+    })
 }
 
 /// Draw randomness and convert inputs to BlsScalar for Poseidon.
@@ -89,7 +164,7 @@ fn prepare_inputs<R>(rng: &mut R, sk: &JubJubScalar) -> (BlsScalar, BlsScalar)
 where
     R: RngCore + CryptoRng,
 {
-    let rng_scalar = JubJubScalar::random(rng);
+    let mut rng_scalar = JubJubScalar::random(rng);
 
     // Both JubJubScalar and BlsScalar are 32-byte little-endian field
     // elements. The JubJub scalar field is smaller than the BLS scalar
@@ -97,12 +172,82 @@ where
     // BlsScalar.
     let rng_bls = BlsScalar::from_bytes_wide(&widen(rng_scalar.to_bytes()));
     let sk_bls = BlsScalar::from_bytes_wide(&widen(sk.to_bytes()));
+    rng_scalar.zeroize();
     (rng_bls, sk_bls)
 }
 
-/// Zero-extend a 32-byte array to 64 bytes for `from_bytes_wide`.
-fn widen(bytes: [u8; 32]) -> [u8; 64] {
-    let mut wide = [0u8; 64];
+/// Zero-extend a 32-byte array to 64 bytes for `from_bytes_wide`. Both
+/// arrays are wiped once used.
+fn widen(mut bytes: [u8; 32]) -> Zeroizing<[u8; 64]> {
+    let mut wide = Zeroizing::new([0u8; 64]);
     wide[..32].copy_from_slice(&bytes);
+    bytes.zeroize();
     wide
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::cell::Cell;
+
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    use super::*;
+
+    std::thread_local! {
+        // Watch only this test thread's exact, initialized digest buffer.
+        static WATCH: Cell<(*mut u8, usize, bool)> =
+            const { Cell::new((core::ptr::null_mut(), 0, false)) };
+    }
+
+    struct InspectDigest;
+    #[global_allocator]
+    static ALLOCATOR: InspectDigest = InspectDigest;
+
+    // SAFETY: allocation and deallocation are forwarded unchanged to System.
+    // The observer neither allocates nor panics, and reads only the registered
+    // buffer's initialized scalar bytes, BEFORE System deallocates them.
+    unsafe impl GlobalAlloc for InspectDigest {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            unsafe { System.alloc(layout) }
+        }
+
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            // TLS may already be destroyed during thread teardown.
+            let _ = WATCH.try_with(|watch| {
+                let (target, len, _) = watch.get();
+                if ptr == target {
+                    let erased = (0..len)
+                        .all(|i| unsafe { ptr.add(i).read_volatile() == 0 });
+                    watch.set((core::ptr::null_mut(), 0, erased));
+                }
+            });
+            unsafe { System.dealloc(ptr, layout) }
+        }
+    }
+
+    #[test]
+    fn nonce_digest_is_reduced_and_erased() {
+        let mut rng = StdRng::seed_from_u64(16);
+        for len in [4, 5] {
+            for _ in 0..8 {
+                let input =
+                    [BlsScalar::zero(); 5].map(|_| BlsScalar::random(&mut rng));
+                let input = &input[..len];
+                let mut wide = [0u8; 64];
+                wide[..32].copy_from_slice(
+                    &Hash::digest(Domain::Other, input)[0].to_bytes(),
+                );
+                let expected = JubJubScalar::from_bytes_wide(&wide);
+                let digest = Hash::digest(Domain::Other, input);
+                let ptr = digest.as_ptr().cast::<u8>().cast_mut();
+                let bytes = core::mem::size_of_val(digest.as_slice());
+                WATCH.with(|watch| watch.set((ptr, bytes, false)));
+                assert_eq!(nonces(digest), [expected]);
+                WATCH.with(|watch| assert!(watch.get().2, "digest not erased"));
+            }
+        }
+    }
 }

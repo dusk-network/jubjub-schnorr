@@ -7,10 +7,46 @@
 //! # Schnorr Signature Gadgets
 //!
 //! This module provides Plonk gadgets for verification of Schnorr signatures.
+//!
+//! # Point validation
+//!
+//! Public keys and the variable generator are [`TorsionFreeWitnessPoint`]s:
+//! the caller establishes their membership in the prime-order subgroup where
+//! they enter the circuit, with [`Composer::assert_torsion_free_point`] for
+//! prover-supplied points. A nonce commitment needs no such check, because
+//! the verification equation constrains it to a sum of subgroup points.
+//!
+//! The gadgets constrain every point to differ from the identity, so they
+//! accept exactly the points native verification accepts.
+//!
+//! # Circuit compatibility
+//!
+//! A change to the constraints of a gadget changes the layout of every circuit
+//! using it. Such a circuit must regenerate its proving and verifier keys and
+//! any cached circuit description.
 
 use dusk_jubjub::{GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED};
 use dusk_plonk::prelude::*;
 use dusk_poseidon::{Domain, HashGadget};
+
+/// Constrains a point to differ from the identity.
+///
+/// The point must be constrained to the prime-order subgroup, where only the
+/// identity has `x = 0`. Proving that `x` has an inverse then excludes it
+/// without branching on the witness.
+fn assert_non_identity(composer: &mut Composer, point: WitnessPoint) {
+    let x = *point.x();
+    let x_inverse = composer[x].invert().unwrap_or(BlsScalar::zero());
+    let x_inverse = composer.append_witness(x_inverse);
+
+    composer.append_gate(
+        Constraint::new()
+            .mult(1)
+            .a(x)
+            .b(x_inverse)
+            .constant(-BlsScalar::one()),
+    );
+}
 
 /// Verifies a single-key Schnorr signature [`Signature`]within a Plonk circuit
 /// without requiring the secret key as a witness.
@@ -27,7 +63,7 @@ use dusk_poseidon::{Domain, HashGadget};
 /// - `composer`: A mutable reference to the Plonk [`Composer`]`.
 /// - `u`: Witness for the signature's scalar response.
 /// - `r`: Witness point for the signature's nonce commitment.
-/// - `pk`: Witness Point representing the public key `pk = sk*G`.
+/// - `pk`: Subgroup point representing the public key `pk = sk*G`.
 /// - `msg`: Witness for the message.
 ///
 /// ### Returns
@@ -38,16 +74,20 @@ use dusk_poseidon::{Domain, HashGadget};
 /// ### Errors
 ///
 /// This function will return an `Error` if the witness `u` is not a valid
-/// [`JubJubScalar`].
+/// [`JubJubScalar`]. The circuit constrains `u` to a canonical
+/// [`JubJubScalar`] as well, so a noncanonical `u` cannot satisfy it.
 ///
 /// [`Signature`]: [`crate::Signature`]
 pub fn verify_signature(
     composer: &mut Composer,
     u: Witness,
     r: WitnessPoint,
-    pk: WitnessPoint,
+    pk: TorsionFreeWitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    assert_non_identity(composer, r);
+    assert_non_identity(composer, pk.into());
+
     let r_x = *r.x();
     let r_y = *r.y();
 
@@ -62,7 +102,7 @@ pub fn verify_signature(
     let s_b = composer.component_mul_point(challenge_hash, pk);
     let point = composer.component_add_point(s_a, s_b);
 
-    composer.assert_equal_point(r, point);
+    composer.assert_equal_point(r, point.into());
 
     Ok(())
 }
@@ -80,8 +120,8 @@ pub fn verify_signature(
 /// - `u`: Witness for the signature's scalar response.
 /// - `r`: Witness point for the signature's nonce commitment.
 /// - `r_p`: Witness point for the signature's second nonce commitment.
-/// - `pk`: Witness Point public key `PK = sk*G`
-/// - `pk_p`: Witness Point public key `PK' = sk*G'`
+/// - `pk`: Subgroup point public key `PK = sk*G`
+/// - `pk_p`: Subgroup point public key `PK' = sk*G'`
 /// - `msg`: Witness for the message.
 ///
 /// ### Returns
@@ -92,7 +132,8 @@ pub fn verify_signature(
 /// ### Errors
 ///
 /// This function will return an `Error` if the witness `u` is not a valid
-/// [`JubJubScalar`].
+/// [`JubJubScalar`]. The circuit constrains `u` to a canonical
+/// [`JubJubScalar`] as well, so a noncanonical `u` cannot satisfy it.
 ///
 /// [`SignatureDouble`]: [`crate::SignatureDouble`]
 pub fn verify_signature_double(
@@ -100,10 +141,15 @@ pub fn verify_signature_double(
     u: Witness,
     r: WitnessPoint,
     r_p: WitnessPoint,
-    pk: WitnessPoint,
-    pk_p: WitnessPoint,
+    pk: TorsionFreeWitnessPoint,
+    pk_p: TorsionFreeWitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    assert_non_identity(composer, r);
+    assert_non_identity(composer, r_p);
+    assert_non_identity(composer, pk.into());
+    assert_non_identity(composer, pk_p.into());
+
     let r_x = *r.x();
     let r_y = *r.y();
 
@@ -133,8 +179,8 @@ pub fn verify_signature_double(
     let s_p_b = composer.component_mul_point(challenge_hash, pk_p);
     let point_p = composer.component_add_point(s_p_a, s_p_b);
 
-    composer.assert_equal_point(r, point);
-    composer.assert_equal_point(r_p, point_p);
+    composer.assert_equal_point(r, point.into());
+    composer.assert_equal_point(r_p, point_p.into());
 
     Ok(())
 }
@@ -154,41 +200,39 @@ pub fn verify_signature_double(
 /// - `composer`: A mutable reference to the Plonk [`Composer`]`.
 /// - `u`: Witness for the signature's scalar response.
 /// - `r`: Witness point for the signature's nonce commitment.
-/// - `pk`: Witness Point representing the public key `pk = sk*G`.
-/// - `generator`: Witness Point representing the variable generator `G`
+/// - `pk`: Subgroup point representing the public key `pk = sk*G`.
+/// - `generator`: Subgroup point representing the variable generator `G`
 /// - `msg`: Witness for the message.
 ///
 /// ### Returns
 ///
 /// Returns `Ok(())` after appending the verification constraints. A
 /// noncanonical `u` makes the circuit unsatisfiable; it is not a host-side
-/// error. Point validity and subgroup constraints remain the caller's
-/// responsibility.
-///
-/// ### Circuit compatibility
-///
-/// The canonical response constraints change the circuit layout. Regenerate
-/// circuit-specific proving and verifier keys when updating this gadget.
+/// error.
 ///
 /// [`SignatureVarGen`]: [`crate::SignatureVarGen`]
 pub fn verify_signature_var_gen(
     composer: &mut Composer,
     u: Witness,
     r: WitnessPoint,
-    pk: WitnessPoint,
-    generator: WitnessPoint,
+    pk: TorsionFreeWitnessPoint,
+    generator: TorsionFreeWitnessPoint,
     msg: Witness,
 ) -> Result<(), Error> {
+    assert_non_identity(composer, r);
+    assert_non_identity(composer, pk.into());
+    assert_non_identity(composer, generator.into());
+
     // Bound the response and its distance from the maximum JubJub scalar
     // to 252 bits. Noncanonical responses make the distance bound fail.
-    composer.component_range::<126>(u);
+    composer.component_range_bits::<252>(u);
     let distance = composer.gate_add(
         Constraint::new()
             .left(-BlsScalar::one())
             .a(u)
             .constant(BlsScalar::from(-JubJubScalar::one())),
     );
-    composer.component_range::<126>(distance);
+    composer.component_range_bits::<252>(distance);
 
     let r_x = *r.x();
     let r_y = *r.y();
@@ -207,7 +251,7 @@ pub fn verify_signature_var_gen(
     let s_b = composer.component_mul_point(challenge_hash, pk);
     let point = composer.component_add_point(s_a, s_b);
 
-    composer.assert_equal_point(r, point);
+    composer.assert_equal_point(r, point.into());
 
     Ok(())
 }

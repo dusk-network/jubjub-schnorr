@@ -17,7 +17,7 @@ use jubjub_schnorr::{
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-const CAPACITY: usize = 13;
+const CAPACITY: usize = 14;
 const LABEL: &[u8; 12] = b"dusk-network";
 
 static PP: LazyLock<PublicParameters> = LazyLock::new(|| {
@@ -26,12 +26,20 @@ static PP: LazyLock<PublicParameters> = LazyLock::new(|| {
 });
 static CONSTRAINTS: AtomicUsize = AtomicUsize::new(0);
 
+fn append_subgroup_point(
+    composer: &mut Composer,
+    point: JubJubExtended,
+) -> Result<TorsionFreeWitnessPoint, PlonkError> {
+    let point = composer.append_point(point)?;
+    Ok(composer.assert_torsion_free_point(point))
+}
+
 fn proof_creation<C>(
     criterion: &mut Criterion,
     name: &str,
     valid: impl FnOnce(&mut StdRng) -> C,
 ) where
-    C: Circuit,
+    C: Circuit + Default,
 {
     let mut rng = StdRng::seed_from_u64(0xbeef);
     let (prover, _verifier) =
@@ -76,8 +84,8 @@ impl SignatureCircuit {
 impl Circuit for SignatureCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
         let u = composer.append_witness(*self.signature.u());
-        let r = composer.append_point(self.signature.R());
-        let pk = composer.append_point(self.pk.as_ref());
+        let r = composer.append_point(*self.signature.R())?;
+        let pk = append_subgroup_point(composer, *self.pk.as_ref())?;
         let message = composer.append_witness(self.message);
 
         let _result = gadgets::verify_signature(composer, u, r, pk, message);
@@ -111,10 +119,10 @@ impl SigDoubleCircuit {
 impl Circuit for SigDoubleCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
         let u = composer.append_witness(*self.signature.u());
-        let r = composer.append_point(self.signature.R());
-        let r_prime = composer.append_point(self.signature.R_prime());
-        let pk = composer.append_point(self.pk.pk());
-        let pk_prime = composer.append_point(self.pk.pk_prime());
+        let r = composer.append_point(*self.signature.R())?;
+        let r_prime = composer.append_point(*self.signature.R_prime())?;
+        let pk = append_subgroup_point(composer, *self.pk.pk())?;
+        let pk_prime = append_subgroup_point(composer, *self.pk.pk_prime())?;
         let message = composer.append_witness(self.message);
 
         gadgets::verify_signature_double(
@@ -151,9 +159,9 @@ impl SigVarGenCircuit {
 impl Circuit for SigVarGenCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), PlonkError> {
         let u = composer.append_witness(*self.signature.u());
-        let r = composer.append_point(self.signature.R());
-        let pk = composer.append_point(self.pk.public_key());
-        let generator = composer.append_point(self.pk.generator());
+        let r = composer.append_point(*self.signature.R())?;
+        let pk = append_subgroup_point(composer, *self.pk.public_key())?;
+        let generator = append_subgroup_point(composer, *self.pk.generator())?;
         let message = composer.append_witness(self.message);
 
         let _result = gadgets::verify_signature_var_gen(

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-09
+
 ### Added
 
 - Add MuSig-style delinearized key aggregation to multisig for
@@ -23,19 +25,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove `PartialOrd` and `Ord` from `SecretKey` [#54]
 - Remove `Copy` from `SecretKeyVarGen` [#55]
+- Remove the `serde_json` feature [#2773]
 
 ### Changed
 
-- Change `multisig::sign_round_2`, `multisig::verify_share`,
-  `multisig::combine` and `multisig::aggregate_pk` to reject a repeated
+- Change multisignatures to verify against the key from
+  `multisig::aggregate_pk` instead of the sum of the participant public keys
+- Change `multisig::sign_round_1` to take the signer's `SecretKey` and derive
+  both nonces from it and the RNG output [#59]
+- Change `multisig::sign_round_1` to take the message and the ordered
+  participant public keys, and bind both nonces to them [#99]
+- Change `multisig::sign_round_1` to take an optional session input and bind
+  both nonces to it [#99]
+- Change `multisig::sign_round_2` to reject a `MultisigNonce` produced for a
+  different message or ordered participant public keys [#99]
+- Change `gadgets::verify_signature`, `gadgets::verify_signature_double` and
+  `gadgets::verify_signature_var_gen` to take public keys and the generator as
+  `TorsionFreeWitnessPoint` [#50]
+- Update `dusk-plonk` to 0.24 [#95]
+- Update `dusk-poseidon` to 0.44 [#95]
+- Update `dusk-bls12_381` to 0.16 [#95]
+- Update `dusk-jubjub` to 0.16 [#95]
+- Change `multisig::sign_round_2` and `multisig::combine` to reject a repeated
   participant public key [#92]
-- Change `multisig::aggregate_pk` to return a `Result` [#89]
-- Change `multisig::sign_round_2`, `multisig::verify_share`,
-  `multisig::combine` and `multisig::aggregate_pk` to reject an invalid
+- Change `multisig::sign_round_2` and `multisig::combine` to reject an invalid
   participant public key, including the identity and small-order points [#89]
-- Raise the MSRV to Rust 1.96.1 [#79]
+- Set the MSRV to Rust 1.96.1 [#79]
 - Update `bs58` to 0.5 [#78]
-- Deduplicate multisignature aggregate-key derivation [#69]
 - Redact secret scalar material from `SecretKey` and `SecretKeyVarGen` debug
   output [#52]
 - Change `multisig::combine` to return a `Result` [#58]
@@ -51,20 +67,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in all Schnorr sign variants to prevent secret key recovery under
   weak RNGs
 - Include generator point in VarGen Schnorr challenge hash
-- Update `dusk-poseidon` to v0.42.0-rc.0
-- Update `dusk-plonk` to 0.22.0-rc.0
-- Move to stable MSRV 1.85
 - Move to rust edition 2024
 
 ### Fixed
 
-- Derive variable-generator signatures and public keys from the
-  affine-normalized generator [#88]
+- Constrain the responses of `gadgets::verify_signature` and
+  `gadgets::verify_signature_double` to canonical JubJub scalars [#87]
+- Reject identity points in `gadgets::verify_signature`,
+  `gadgets::verify_signature_double` and `gadgets::verify_signature_var_gen`
+  [#50]
 - Constrain variable-generator signature responses to canonical JubJub scalars
   in `verify_signature_var_gen` [#86]
-- Include all features and targets in Clippy checks [#64]
 - Reject empty or mismatched participant vectors in `multisig::combine` [#58]
-- Check that reusing a consumed `MultisigNonce` emits E0382 [#60]
 - Zeroize `SecretKey` when converting it into `SecretKeyVarGen` [#55]
 
 ## [0.6.0] - 2025-02-06
@@ -151,17 +165,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#2773]: https://github.com/dusk-network/rusk/issues/2773
+[#99]: https://github.com/dusk-network/jubjub-schnorr/issues/99
+[#59]: https://github.com/dusk-network/jubjub-schnorr/issues/59
+[#95]: https://github.com/dusk-network/jubjub-schnorr/issues/95
+[#87]: https://github.com/dusk-network/jubjub-schnorr/issues/87
+[#50]: https://github.com/dusk-network/jubjub-schnorr/issues/50
 [#92]: https://github.com/dusk-network/jubjub-schnorr/issues/92
 [#89]: https://github.com/dusk-network/jubjub-schnorr/issues/89
-[#88]: https://github.com/dusk-network/jubjub-schnorr/issues/88
 [#86]: https://github.com/dusk-network/jubjub-schnorr/issues/86
 [#79]: https://github.com/dusk-network/jubjub-schnorr/issues/79
 [#78]: https://github.com/dusk-network/jubjub-schnorr/issues/78
-[#69]: https://github.com/dusk-network/jubjub-schnorr/issues/69
-[#64]: https://github.com/dusk-network/jubjub-schnorr/issues/64
 [#65]: https://github.com/dusk-network/jubjub-schnorr/issues/65
 [#58]: https://github.com/dusk-network/jubjub-schnorr/issues/58
-[#60]: https://github.com/dusk-network/jubjub-schnorr/issues/60
 [#54]: https://github.com/dusk-network/jubjub-schnorr/issues/54
 [#55]: https://github.com/dusk-network/jubjub-schnorr/issues/55
 [#52]: https://github.com/dusk-network/jubjub-schnorr/issues/52
@@ -180,7 +196,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#2]: https://github.com/dusk-network/jubjub-schnorr/issues/2
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/dusk-network/jubjub-schnorr/compare/v0.4.0...v0.5.0

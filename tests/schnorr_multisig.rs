@@ -33,9 +33,12 @@ fn sign_verify() {
 
     let pk_vec = vec![pk_1, pk_2];
 
-    // First round: all signers compute the following elements
-    let (nonce_1, R_1, S_1) = multisig::sign_round_1(&mut rng);
-    let (nonce_2, R_2, S_2) = multisig::sign_round_1(&mut rng);
+    // First round: all signers compute the following elements for the
+    // message and the ordered public keys
+    let (nonce_1, R_1, S_1) =
+        multisig::sign_round_1(&mut rng, &sk_1, &pk_vec, &message, None);
+    let (nonce_2, R_2, S_2) =
+        multisig::sign_round_1(&mut rng, &sk_2, &pk_vec, &message, None);
 
     // All signers share `R_vec` and `S_vec` with all the other signers
     let R_vec = vec![R_1, R_2];
@@ -96,8 +99,10 @@ fn valid_three_party_transcript() -> (
     let sk_vec: Vec<_> = (0..3).map(|_| SecretKey::random(&mut rng)).collect();
     let pk_vec: Vec<_> = sk_vec.iter().map(PublicKey::from).collect();
     let message = BlsScalar::random(&mut rng);
-    let rounds: Vec<_> =
-        (0..3).map(|_| multisig::sign_round_1(&mut rng)).collect();
+    let rounds: Vec<_> = sk_vec
+        .iter()
+        .map(|sk| multisig::sign_round_1(&mut rng, sk, &pk_vec, &message, None))
+        .collect();
     let r_vec: Vec<_> = rounds.iter().map(|(_, r, _)| *r).collect();
     let s_vec: Vec<_> = rounds.iter().map(|(_, _, s)| *s).collect();
     let z_vec = sk_vec
@@ -342,7 +347,8 @@ fn duplicated_nonce() {
 
     let message = BlsScalar::random(&mut rng);
 
-    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &pk_vec, &message, None);
 
     let R_vec = vec![R, R]; // duplicated nonce
     let S_vec = vec![S, S]; // duplicated nonce
@@ -367,16 +373,20 @@ fn round_two_rejects_misaligned_commitments() {
     let pk = PublicKey::from(&sk);
     let message = BlsScalar::random(&mut rng);
 
-    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
-    let (_, wrong_R, _) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
+    let (_, wrong_R, _) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
     assert_eq!(
         multisig::sign_round_2(&sk, nonce, &[pk], &[wrong_R], &[S], &message),
         Err(Error::InvalidMultisigTranscript)
     );
     assert_ne!(R, wrong_R);
 
-    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
-    let (_, _, wrong_S) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
+    let (_, _, wrong_S) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
     assert_eq!(
         multisig::sign_round_2(&sk, nonce, &[pk], &[R], &[wrong_S], &message),
         Err(Error::InvalidMultisigTranscript)
@@ -394,14 +404,17 @@ fn round_two_requires_exactly_one_signer_key() {
     let other_pk = PublicKey::from(&other_sk);
     let message = BlsScalar::random(&mut rng);
 
-    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &[other_pk], &message, None);
     assert_eq!(
         multisig::sign_round_2(&sk, nonce, &[other_pk], &[R], &[S], &message,),
         Err(Error::InvalidMultisigTranscript)
     );
 
-    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
-    let (_, other_R, other_S) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk, pk], &message, None);
+    let (_, other_R, other_S) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk, pk], &message, None);
     assert_eq!(
         multisig::sign_round_2(
             &sk,
@@ -423,13 +436,15 @@ fn round_two_rejects_unequal_commitment_lengths() {
     let pk = PublicKey::from(&sk);
     let message = BlsScalar::random(&mut rng);
 
-    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
     assert_eq!(
         multisig::sign_round_2(&sk, nonce, &[pk], &[R, R], &[S], &message),
         Err(Error::InvalidMultisigTranscript)
     );
 
-    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
     assert_eq!(
         multisig::sign_round_2(&sk, nonce, &[pk], &[R], &[S, S], &message),
         Err(Error::InvalidMultisigTranscript)
@@ -449,8 +464,9 @@ fn rejects_identity_and_small_order_participant_keys() {
     let zero = JubJubScalar::zero();
 
     for key in [identity, order_two] {
-        let (nonce, R, S) = multisig::sign_round_1(&mut rng);
         let pk_vec = [PublicKey::from(&sk), PublicKey::from(key)];
+        let (nonce, R, S) =
+            multisig::sign_round_1(&mut rng, &sk, &pk_vec, &message, None);
         let R_vec = [R, identity];
         let S_vec = [S, identity];
 
@@ -492,19 +508,28 @@ fn rejects_repeated_participant_keys() {
     let sk = SecretKey::random(&mut rng);
     let pk = PublicKey::from(&sk);
     let message = BlsScalar::random(&mut rng);
-    let (_, R_a, S_a) = multisig::sign_round_1(&mut rng);
-    let (_, R_b, S_b) = multisig::sign_round_1(&mut rng);
+    let (_, R_a, S_a) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
+    let (_, R_b, S_b) =
+        multisig::sign_round_1(&mut rng, &sk, &[pk], &message, None);
     let (pk_vec, R_vec, S_vec) = ([pk, pk], [R_a, R_b], [S_a, S_b]);
     let share = JubJubScalar::one();
 
     // The signer appears once, another participant twice.
-    let (nonce, R, S) = multisig::sign_round_1(&mut rng);
     let signer = SecretKey::random(&mut rng);
+    let signer_pk_vec = [PublicKey::from(&signer), pk, pk];
+    let (nonce, R, S) = multisig::sign_round_1(
+        &mut rng,
+        &signer,
+        &signer_pk_vec,
+        &message,
+        None,
+    );
     assert_eq!(
         multisig::sign_round_2(
             &signer,
             nonce,
-            &[PublicKey::from(&signer), pk, pk],
+            &signer_pk_vec,
             &[R, R_a, R_b],
             &[S, S_a, S_b],
             &message
@@ -522,5 +547,93 @@ fn rejects_repeated_participant_keys() {
     assert_eq!(
         multisig::aggregate_pk(&pk_vec),
         Err(Error::InvalidMultisigTranscript)
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn round_two_rejects_a_nonce_for_another_message() {
+    let mut rng = StdRng::seed_from_u64(0x4d5347);
+    let sk = SecretKey::random(&mut rng);
+    let other_sk = SecretKey::random(&mut rng);
+    let pk_vec = [PublicKey::from(&sk), PublicKey::from(&other_sk)];
+    let message = BlsScalar::random(&mut rng);
+    let other_message = BlsScalar::random(&mut rng);
+
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &pk_vec, &message, None);
+    let (_, other_R, other_S) = multisig::sign_round_1(
+        &mut rng,
+        &other_sk,
+        &pk_vec,
+        &other_message,
+        None,
+    );
+    let (R_vec, S_vec) = ([R, other_R], [S, other_S]);
+
+    assert_eq!(
+        multisig::sign_round_2(
+            &sk,
+            nonce,
+            &pk_vec,
+            &R_vec,
+            &S_vec,
+            &other_message
+        ),
+        Err(Error::InvalidMultisigTranscript)
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
+fn round_two_rejects_a_nonce_for_another_key_list() {
+    let mut rng = StdRng::seed_from_u64(0x4b4559);
+    let sk = SecretKey::random(&mut rng);
+    let [a, b, c] = [
+        PublicKey::from(&sk),
+        PublicKey::from(&SecretKey::random(&mut rng)),
+        PublicKey::from(&SecretKey::random(&mut rng)),
+    ];
+    let message = BlsScalar::random(&mut rng);
+    let mut commitment = || GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
+    let [R_b, S_b, R_c, S_c] = [(); 4].map(|_| commitment());
+
+    // Reordered, substituted, shortened and extended key lists, each with the
+    // signer's commitments in the signer's slot.
+    for (pk_vec, others) in [
+        (vec![b, a], vec![(R_b, S_b)]),
+        (vec![a, c], vec![(R_c, S_c)]),
+        (vec![a], vec![]),
+        (vec![a, b, c], vec![(R_b, S_b), (R_c, S_c)]),
+    ] {
+        let (nonce, R, S) =
+            multisig::sign_round_1(&mut rng, &sk, &[a, b], &message, None);
+        let signer = pk_vec.iter().position(|pk| *pk == a).unwrap();
+        let mut R_vec: Vec<_> = others.iter().map(|(R, _)| *R).collect();
+        let mut S_vec: Vec<_> = others.iter().map(|(_, S)| *S).collect();
+        R_vec.insert(signer, R);
+        S_vec.insert(signer, S);
+
+        assert_eq!(
+            multisig::sign_round_2(
+                &sk, nonce, &pk_vec, &R_vec, &S_vec, &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+    }
+
+    // The same commitments pass with the key list of round one.
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &[a, b], &message, None);
+    assert!(
+        multisig::sign_round_2(
+            &sk,
+            nonce,
+            &[a, b],
+            &[R, R_b],
+            &[S, S_b],
+            &message
+        )
+        .is_ok()
     );
 }
