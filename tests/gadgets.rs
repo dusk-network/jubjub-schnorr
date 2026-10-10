@@ -443,6 +443,51 @@ impl SignatureDoubleCircuit {
             message,
         }
     }
+
+    /// The key owner signs so that one of the two equations holds and the
+    /// other one's commitment is an unrelated point.
+    pub fn one_equation(rng: &mut StdRng, first: bool) -> Self {
+        let sk = JubJubScalar::random(&mut *rng);
+        let pk = GENERATOR_EXTENDED * sk;
+        let pk_p = GENERATOR_NUMS_EXTENDED * sk;
+        let message = BlsScalar::random(&mut *rng);
+        let nonce = JubJubScalar::random(&mut *rng);
+        let unrelated = GENERATOR_EXTENDED * JubJubScalar::random(&mut *rng);
+        let (r, r_p) = match first {
+            true => (GENERATOR_EXTENDED * nonce, unrelated),
+            false => (unrelated, GENERATOR_NUMS_EXTENDED * nonce),
+        };
+        let (r_xy, r_p_xy) = (r.to_hash_inputs(), r_p.to_hash_inputs());
+        let (pk_xy, pk_p_xy) = (pk.to_hash_inputs(), pk_p.to_hash_inputs());
+
+        let c = Hash::digest_truncated(
+            Domain::Other,
+            &[
+                DOUBLE_CHALLENGE_DOMAIN.into(),
+                r_xy[0],
+                r_xy[1],
+                r_p_xy[0],
+                r_p_xy[1],
+                pk_xy[0],
+                pk_xy[1],
+                pk_p_xy[0],
+                pk_p_xy[1],
+                message,
+            ],
+        )[0];
+        let u = nonce - c * sk;
+        assert_eq!(GENERATOR_EXTENDED * u + pk * c == r, first);
+        assert_eq!(GENERATOR_NUMS_EXTENDED * u + pk_p * c == r_p, !first);
+
+        Self {
+            u,
+            r,
+            r_p,
+            pk,
+            pk_p,
+            message,
+        }
+    }
 }
 
 impl Circuit for SignatureDoubleCircuit {
@@ -557,6 +602,18 @@ fn verify_signature_double_rejects_identity_points() {
 
     let circuit = SignatureDoubleCircuit::identity_nonces(&mut rng);
     assert_unsatisfiable(&prover, &circuit, "identity nonce commitments");
+}
+
+#[test]
+fn verify_signature_double_requires_both_equations() {
+    let mut rng = StdRng::seed_from_u64(0xb0b);
+    let (prover, _) = Compiler::compile::<SignatureDoubleCircuit>(&PP, LABEL)
+        .expect("Circuit should compile successfully");
+
+    for first in [true, false] {
+        let circuit = SignatureDoubleCircuit::one_equation(&mut rng, first);
+        assert_unsatisfiable(&prover, &circuit, "a single equation");
+    }
 }
 
 //

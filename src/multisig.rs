@@ -884,6 +884,30 @@ mod tests {
         assert_eq!(nonce.transcript, BlsScalar::zero());
     }
 
+    /// Round two consumes the nonce state, so its drop is what wipes it.
+    #[test]
+    fn nonce_state_zeroizes_on_drop() {
+        let mut slot = core::mem::MaybeUninit::new(MultisigNonce {
+            r: JubJubScalar::from(41u64),
+            s: JubJubScalar::from(43u64),
+            transcript: BlsScalar::from(47u64),
+        });
+        let nonce = slot.as_mut_ptr();
+
+        // SAFETY: `slot` holds an initialized state, dropped exactly once.
+        unsafe { core::ptr::drop_in_place(nonce) };
+
+        // Read the storage as bytes, without forming a reference to the
+        // dropped state. Its fields are all runs of `u64` limbs, so it has no
+        // padding, and the drop leaves every byte written.
+        let bytes = nonce.cast::<u8>();
+        for i in 0..core::mem::size_of::<MultisigNonce>() {
+            // SAFETY: `i` lies within `slot`, which is still allocated.
+            let byte = unsafe { core::ptr::read_volatile(bytes.add(i)) };
+            assert_eq!(byte, 0, "byte {i}");
+        }
+    }
+
     type RoundOne = (MultisigNonce, JubJubExtended, JubJubExtended);
 
     /// Runs three sessions of the signer `sk = 7`, with the given round-one

@@ -138,3 +138,47 @@ pub(crate) fn challenge_hash(
         ],
     )[0]
 }
+
+#[cfg(test)]
+mod tests {
+    use dusk_bls12_381::BlsScalar;
+    use dusk_bytes::Serializable;
+    use dusk_jubjub::{
+        GENERATOR_EXTENDED, JubJubAffine, JubJubExtended, JubJubScalar,
+    };
+
+    use super::Signature;
+    use crate::{Error, PublicKey, SecretKey};
+
+    /// `from_bytes` admits the identity, and an archive admits any point, so
+    /// verification has to reject both before it checks the equation.
+    #[test]
+    fn verify_rejects_invalid_nonce_commitments() {
+        let sk = SecretKey::from(JubJubScalar::from(7u64));
+        let pk = PublicKey::from(&sk);
+        let msg = BlsScalar::from(11u64);
+        let u = JubJubScalar::from(13u64);
+
+        let mut bytes = [0u8; Signature::SIZE];
+        bytes[..32].copy_from_slice(&u.to_bytes());
+        bytes[32..].copy_from_slice(&JubJubAffine::identity().to_bytes());
+        let identity = Signature::from_bytes(&bytes).expect("decodes");
+        assert_eq!(identity, Signature::new(u, JubJubExtended::identity()));
+
+        // the point of order two, `(0, -1)`, offsets a subgroup point
+        let torsion: JubJubExtended = JubJubAffine::from_raw_unchecked(
+            BlsScalar::zero(),
+            -BlsScalar::one(),
+        )
+        .into();
+        let torsioned =
+            GENERATOR_EXTENDED * JubJubScalar::from(17u64) + torsion;
+        assert!(bool::from(torsioned.is_on_curve()));
+        assert!(!bool::from(torsioned.is_torsion_free()));
+
+        for sig in [identity, Signature::new(u, torsioned)] {
+            assert!(!sig.is_valid());
+            assert_eq!(pk.verify(&sig, msg), Err(Error::InvalidPoint));
+        }
+    }
+}
