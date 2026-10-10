@@ -367,6 +367,48 @@ fn duplicated_nonce() {
 
 #[test]
 #[allow(non_snake_case)]
+fn round_two_rejects_a_single_repeated_commitment() {
+    let mut rng = StdRng::seed_from_u64(0x9abc);
+    let sk = SecretKey::random(&mut rng);
+    let other_sk = SecretKey::random(&mut rng);
+    let pk_vec = [PublicKey::from(&sk), PublicKey::from(&other_sk)];
+    let message = BlsScalar::random(&mut rng);
+    let (_, other_R, other_S) =
+        multisig::sign_round_1(&mut rng, &other_sk, &pk_vec, &message, None);
+
+    // the co-signer repeats the signer's R but not its S
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &pk_vec, &message, None);
+    assert_eq!(
+        multisig::sign_round_2(
+            &sk,
+            nonce,
+            &pk_vec,
+            &[R, R],
+            &[S, other_S],
+            &message
+        ),
+        Err(Error::DuplicatedNonce)
+    );
+
+    // the co-signer repeats the signer's S but not its R
+    let (nonce, R, S) =
+        multisig::sign_round_1(&mut rng, &sk, &pk_vec, &message, None);
+    assert_eq!(
+        multisig::sign_round_2(
+            &sk,
+            nonce,
+            &pk_vec,
+            &[R, other_R],
+            &[S, S],
+            &message
+        ),
+        Err(Error::DuplicatedNonce)
+    );
+}
+
+#[test]
+#[allow(non_snake_case)]
 fn round_two_rejects_misaligned_commitments() {
     let mut rng = StdRng::seed_from_u64(0x1234);
     let sk = SecretKey::random(&mut rng);
