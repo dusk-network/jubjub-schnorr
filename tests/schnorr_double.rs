@@ -8,7 +8,7 @@ mod common;
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_jubjub::JubJubScalar;
+use dusk_jubjub::{JubJubAffine, JubJubExtended, JubJubScalar};
 use ff::Field;
 use jubjub_schnorr::{Error, PublicKeyDouble, SecretKey, SignatureDouble};
 use rand::SeedableRng;
@@ -79,4 +79,29 @@ fn adaptive_secondary_key_is_rejected() {
             .verify(&fixture.signature, fixture.message),
         Err(Error::InvalidSignature)
     );
+}
+
+#[test]
+fn verify_rejects_any_invalid_key_point() {
+    let mut rng = StdRng::seed_from_u64(0xcafe);
+    let sk = SecretKey::random(&mut rng);
+    let msg = BlsScalar::random(&mut rng);
+    let pk = PublicKeyDouble::from(&sk);
+    let sig = sk.sign_double(&mut rng, msg);
+    assert!(pk.is_valid());
+
+    // the point of order two, `(0, -1)`, offsets a subgroup point
+    let torsion: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), -BlsScalar::one())
+            .into();
+    let identity = JubJubExtended::identity();
+    for pk in [
+        PublicKeyDouble::from_raw_unchecked(identity, *pk.pk_prime()),
+        PublicKeyDouble::from_raw_unchecked(*pk.pk() + torsion, *pk.pk_prime()),
+        PublicKeyDouble::from_raw_unchecked(*pk.pk(), identity),
+        PublicKeyDouble::from_raw_unchecked(*pk.pk(), *pk.pk_prime() + torsion),
+    ] {
+        assert!(!pk.is_valid());
+        assert_eq!(pk.verify(&sig, msg), Err(Error::InvalidPoint));
+    }
 }

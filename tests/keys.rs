@@ -11,6 +11,14 @@ use jubjub_schnorr::{
 use rand_core::OsRng;
 
 #[test]
+fn pk_from_point() {
+    let point = *PublicKey::from(&SecretKey::random(&mut OsRng)).as_ref();
+
+    assert_eq!(PublicKey::from(point).as_ref(), &point);
+    assert_eq!(PublicKey::from(&point).as_ref(), &point);
+}
+
+#[test]
 #[allow(clippy::eq_op)]
 fn partial_eq_pk() {
     let sk1 = SecretKey::random(&mut OsRng);

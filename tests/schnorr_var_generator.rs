@@ -6,7 +6,9 @@
 
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_jubjub::{GENERATOR_EXTENDED, JubJubScalar};
+use dusk_jubjub::{
+    GENERATOR_EXTENDED, JubJubAffine, JubJubExtended, JubJubScalar,
+};
 use dusk_poseidon::{Domain, Hash};
 use ff::Field;
 use jubjub_schnorr::{
@@ -121,4 +123,30 @@ fn sign_verify_identity_fails() {
     let sig = sk.sign(&mut rng, msg);
 
     assert_eq!(pk.verify(&sig, msg).unwrap_err(), Error::InvalidPoint);
+}
+
+#[test]
+fn verify_rejects_any_invalid_key_point() {
+    let mut rng = StdRng::seed_from_u64(0xcafe);
+    let sk = SecretKeyVarGen::random(&mut rng);
+    let msg = BlsScalar::random(&mut rng);
+    let pk = PublicKeyVarGen::from(&sk);
+    let sig = sk.sign(&mut rng, msg);
+    assert!(pk.is_valid());
+
+    // the point of order two, `(0, -1)`, offsets a subgroup point
+    let torsion: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), -BlsScalar::one())
+            .into();
+    let identity = JubJubExtended::identity();
+    let (key, generator) = (*pk.public_key(), *pk.generator());
+    for pk in [
+        PublicKeyVarGen::from_raw_unchecked(identity, generator),
+        PublicKeyVarGen::from_raw_unchecked(key + torsion, generator),
+        PublicKeyVarGen::from_raw_unchecked(key, identity),
+        PublicKeyVarGen::from_raw_unchecked(key, generator + torsion),
+    ] {
+        assert!(!pk.is_valid());
+        assert_eq!(pk.verify(&sig, msg), Err(Error::InvalidPoint));
+    }
 }

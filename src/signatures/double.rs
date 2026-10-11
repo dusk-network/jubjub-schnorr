@@ -180,11 +180,12 @@ pub(crate) fn challenge_hash(
 mod tests {
     use dusk_bls12_381::BlsScalar;
     use dusk_jubjub::{
-        GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubScalar,
+        GENERATOR_EXTENDED, GENERATOR_NUMS_EXTENDED, JubJubAffine,
+        JubJubExtended, JubJubScalar,
     };
 
-    use super::challenge_hash;
-    use crate::PublicKeyDouble;
+    use super::{SignatureDouble, challenge_hash};
+    use crate::{Error, PublicKeyDouble, SecretKey};
 
     #[test]
     fn challenge_binds_both_public_keys() {
@@ -214,5 +215,67 @@ mod tests {
             challenge,
             challenge_hash(&r, &r_prime, changed_pk_prime, message)
         );
+    }
+
+    /// `from_bytes` admits the identity, and an archive admits any point, so
+    /// verification has to reject both, in either commitment, before it
+    /// checks the equations.
+    #[test]
+    #[allow(non_snake_case)]
+    fn verify_rejects_invalid_nonce_commitments() {
+        let sk = SecretKey::from(JubJubScalar::from(7u64));
+        let pk = PublicKeyDouble::from(&sk);
+        let msg = BlsScalar::from(11u64);
+        let u = JubJubScalar::from(13u64);
+        let R = GENERATOR_EXTENDED * JubJubScalar::from(17u64);
+        let R_prime = GENERATOR_NUMS_EXTENDED * JubJubScalar::from(17u64);
+
+        // the point of order two, `(0, -1)`, offsets a subgroup point
+        let torsion: JubJubExtended = JubJubAffine::from_raw_unchecked(
+            BlsScalar::zero(),
+            -BlsScalar::one(),
+        )
+        .into();
+        assert!(!bool::from((R + torsion).is_torsion_free()));
+        assert!(!bool::from((R_prime + torsion).is_torsion_free()));
+
+        let identity = JubJubExtended::identity();
+        for (R, R_prime) in [
+            (identity, R_prime),
+            (R + torsion, R_prime),
+            (R, identity),
+            (R, R_prime + torsion),
+        ] {
+            let sig = SignatureDouble::new(u, R, R_prime);
+            assert!(!sig.is_valid());
+            assert_eq!(pk.verify(&sig, msg), Err(Error::InvalidPoint));
+        }
+    }
+
+    /// Each equation binds the response to one of the keys, so a signature
+    /// that satisfies only one of them proves nothing about the other key.
+    #[test]
+    #[allow(non_snake_case)]
+    fn verify_requires_both_equations() {
+        let sk = SecretKey::from(JubJubScalar::from(7u64));
+        let pk = PublicKeyDouble::from(&sk);
+        let msg = BlsScalar::from(11u64);
+        let r = JubJubScalar::from(13u64);
+        let other = JubJubScalar::from(17u64);
+        let sign = |R, R_prime| {
+            let c = challenge_hash(&R, &R_prime, pk, msg);
+            SignatureDouble::new(r - c * sk.as_ref(), R, R_prime)
+        };
+
+        let sig = sign(GENERATOR_EXTENDED * r, GENERATOR_NUMS_EXTENDED * r);
+        assert_eq!(pk.verify(&sig, msg), Ok(()));
+
+        for sig in [
+            sign(GENERATOR_EXTENDED * r, GENERATOR_NUMS_EXTENDED * other),
+            sign(GENERATOR_EXTENDED * other, GENERATOR_NUMS_EXTENDED * r),
+        ] {
+            assert!(sig.is_valid());
+            assert_eq!(pk.verify(&sig, msg), Err(Error::InvalidSignature));
+        }
     }
 }
