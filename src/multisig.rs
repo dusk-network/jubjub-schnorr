@@ -222,7 +222,7 @@ pub fn sign_round_1<R>(
 where
     R: RngCore + CryptoRng,
 {
-    let transcript = transcript_digest(&hash_inputs(pk_vec), msg);
+    let transcript = transcript_digest(&safe_hash_inputs(pk_vec), msg);
     let [r, s] = crate::nonce::hedged_multisig_nonces(
         rng,
         sk.as_ref(),
@@ -259,9 +259,10 @@ where
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors do
 /// not have equal lengths, `pk_vec` or `msg` differ from those passed to
-/// [`sign_round_1`] for this state, any public key is invalid or repeated, the
-/// signer key is not in the key list, or this state does not match the
-/// signer's commitment slot. Returns
+/// [`sign_round_1`] for this state, any public key is invalid or repeated, any
+/// commitment point in `R_vec` or `S_vec` is off-curve or has a torsion
+/// component, the signer key is not in the key list, or this state does not
+/// match the signer's commitment slot. Returns
 /// [`Error::DuplicatedNonce`] if any two participants supplied the same `R` or
 /// `S` commitment.
 pub fn sign_round_2(
@@ -272,13 +273,16 @@ pub fn sign_round_2(
     S_vec: &[JubJubExtended],
     msg: &BlsScalar,
 ) -> Result<JubJubScalar, Error> {
-    if pk_vec.len() != R_vec.len() || R_vec.len() != S_vec.len() {
+    if pk_vec.len() != R_vec.len()
+        || R_vec.len() != S_vec.len()
+        || has_invalid_key(pk_vec)
+        || has_invalid_commitment(R_vec)
+        || has_invalid_commitment(S_vec)
+    {
         return Err(Error::InvalidMultisigTranscript);
     }
     let keys = hash_inputs(pk_vec);
-    if transcript_digest(&keys, msg) != nonce.transcript
-        || has_invalid_key(pk_vec)
-    {
+    if transcript_digest(&keys, msg) != nonce.transcript {
         return Err(Error::InvalidMultisigTranscript);
     }
 
@@ -336,8 +340,9 @@ pub fn sign_round_2(
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
-/// empty, have unequal lengths, contain an invalid or repeated public key, or
-/// do not contain `participant_index`. Returns
+/// empty, have unequal lengths, contain an invalid or repeated public key,
+/// contain an off-curve or torsioned commitment in `R_vec` or `S_vec`, or do
+/// not contain `participant_index`. Returns
 /// [`Error::InvalidMultisigShare`] with `participant_index` if the share does
 /// not satisfy its verification equation.
 pub fn verify_share(
@@ -353,6 +358,8 @@ pub fn verify_share(
         || R_vec.len() != S_vec.len()
         || participant_index >= pk_vec.len()
         || has_invalid_key(pk_vec)
+        || has_invalid_commitment(R_vec)
+        || has_invalid_commitment(S_vec)
     {
         return Err(Error::InvalidMultisigTranscript);
     }
@@ -386,11 +393,11 @@ pub fn verify_share(
 /// ## Errors
 ///
 /// Returns [`Error::InvalidMultisigTranscript`] if the participant vectors are
-/// empty, do not have equal lengths, or contain an invalid or repeated public
-/// key. Returns
-/// [`Error::InvalidMultisigShare`] with the participant slot of the first share
-/// that fails verification. No aggregate signature is returned when a share is
-/// invalid.
+/// empty, do not have equal lengths, contain an invalid or repeated public
+/// key, or contain an off-curve or torsioned commitment in `R_vec` or `S_vec`.
+/// Returns [`Error::InvalidMultisigShare`] with the participant slot of the
+/// first share that fails verification. No aggregate signature is returned
+/// when a share is invalid.
 pub fn combine(
     z_vec: &[JubJubScalar],
     pk_vec: &[PublicKey],
@@ -403,6 +410,8 @@ pub fn combine(
         || pk_vec.len() != R_vec.len()
         || R_vec.len() != S_vec.len()
         || has_invalid_key(pk_vec)
+        || has_invalid_commitment(R_vec)
+        || has_invalid_commitment(S_vec)
     {
         return Err(Error::InvalidMultisigTranscript);
     }
@@ -453,6 +462,22 @@ fn hash_inputs(pk_vec: &[PublicKey]) -> Vec<[BlsScalar; 2]> {
         .collect()
 }
 
+/// Non-panicking variant of [`hash_inputs`] for infallible [`sign_round_1`].
+/// Valid on-curve keys yield identical coordinates; invalid keys are rejected
+/// before signing by [`sign_round_2`].
+fn safe_hash_inputs(pk_vec: &[PublicKey]) -> Vec<[BlsScalar; 2]> {
+    pk_vec
+        .iter()
+        .map(|pk| {
+            if bool::from(pk.as_ref().is_on_curve()) {
+                pk.as_ref().to_hash_inputs()
+            } else {
+                [BlsScalar::zero(); 2]
+            }
+        })
+        .collect()
+}
+
 /// Identity and small-order keys satisfy share verification without any
 /// secret, and a repeated key lets one secret sign for several entries, so
 /// either counts participants that never signed.
@@ -461,6 +486,15 @@ fn has_invalid_key(pk_vec: &[PublicKey]) -> bool {
         .iter()
         .enumerate()
         .any(|(i, pk)| !pk.is_valid() || pk_vec[..i].contains(pk))
+}
+
+/// Off-curve and torsion commitments are invalid in the prime-order
+/// multisignature group, and projective points with `Z = 0` would panic when
+/// converted to affine coordinates for hashing.
+fn has_invalid_commitment(points: &[JubJubExtended]) -> bool {
+    points
+        .iter()
+        .any(|point| !bool::from(point.is_on_curve() & point.is_torsion_free()))
 }
 
 fn verify_share_with_coefficients(

@@ -679,3 +679,137 @@ fn round_two_rejects_a_nonce_for_another_key_list() {
         .is_ok()
     );
 }
+
+#[test]
+#[allow(non_snake_case)]
+fn rejects_invalid_commitments_and_off_curve_keys() {
+    let mut rng = StdRng::seed_from_u64(0x7051);
+    let sk_1 = SecretKey::random(&mut rng);
+    let pk_1 = PublicKey::from(&sk_1);
+    let sk_2 = SecretKey::random(&mut rng);
+    let pk_2 = PublicKey::from(&sk_2);
+    let pk_vec = [pk_1, pk_2];
+    let message = BlsScalar::random(&mut rng);
+
+    let order_two: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), -BlsScalar::one())
+            .into();
+    let off_curve: JubJubExtended =
+        JubJubAffine::from_raw_unchecked(BlsScalar::zero(), BlsScalar::zero())
+            .into();
+    let valid_r2 = GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
+    let valid_s2 = GENERATOR_EXTENDED * JubJubScalar::random(&mut rng);
+    let share = JubJubScalar::one();
+
+    let mut invalid_points = vec![order_two, off_curve];
+    #[cfg(feature = "rkyv-impl")]
+    {
+        use rkyv::{Deserialize, Infallible};
+
+        #[repr(align(8))]
+        struct Aligned([u8; 5 * BlsScalar::SIZE]);
+
+        let zero_z_bytes = Aligned([0u8; 5 * BlsScalar::SIZE]);
+        // SAFETY: 8-byte aligned buffer matching archived `JubJubExtended`
+        // layout with Z = 0.
+        let archived =
+            unsafe { rkyv::archived_root::<JubJubExtended>(&zero_z_bytes.0) };
+        let zero_z: JubJubExtended =
+            archived.deserialize(&mut Infallible).unwrap();
+        invalid_points.push(zero_z);
+    }
+
+    for bad in invalid_points {
+        // Invalid R_2
+        let (nonce, R_1, S_1) =
+            multisig::sign_round_1(&mut rng, &sk_1, &pk_vec, &message, None);
+        assert_eq!(
+            multisig::sign_round_2(
+                &sk_1,
+                nonce,
+                &pk_vec,
+                &[R_1, bad],
+                &[S_1, valid_s2],
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::verify_share(
+                &share,
+                0,
+                &pk_vec,
+                &[R_1, bad],
+                &[S_1, valid_s2],
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::combine(
+                &[share, share],
+                &pk_vec,
+                &[R_1, bad],
+                &[S_1, valid_s2],
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+
+        // Invalid S_2
+        let (nonce, R_1, S_1) =
+            multisig::sign_round_1(&mut rng, &sk_1, &pk_vec, &message, None);
+        assert_eq!(
+            multisig::sign_round_2(
+                &sk_1,
+                nonce,
+                &pk_vec,
+                &[R_1, valid_r2],
+                &[S_1, bad],
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::verify_share(
+                &share,
+                0,
+                &pk_vec,
+                &[R_1, valid_r2],
+                &[S_1, bad],
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::combine(
+                &[share, share],
+                &pk_vec,
+                &[R_1, valid_r2],
+                &[S_1, bad],
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+
+        // Invalid pk_2 must not panic in sign_round_1 or sign_round_2
+        let bad_pks = [pk_1, PublicKey::from(bad)];
+        let (nonce, R_1, S_1) =
+            multisig::sign_round_1(&mut rng, &sk_1, &bad_pks, &message, None);
+        assert_eq!(
+            multisig::sign_round_2(
+                &sk_1,
+                nonce,
+                &bad_pks,
+                &[R_1, valid_r2],
+                &[S_1, valid_s2],
+                &message
+            ),
+            Err(Error::InvalidMultisigTranscript)
+        );
+        assert_eq!(
+            multisig::aggregate_pk(&bad_pks),
+            Err(Error::InvalidMultisigTranscript)
+        );
+    }
+}

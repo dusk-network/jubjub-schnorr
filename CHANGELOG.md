@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Report over-long Serde Base58 strings as an invalid value and wipe temporary
+  buffers in Serde `Serialize` and `Deserialize` implementations [#106]
+
+### Fixed
+
+- Reject over-long Serde Base58 strings before decoding [#106]
+- Reject off-curve and torsioned `R_vec`/`S_vec` commitments in
+  `multisig::sign_round_2`, `multisig::verify_share`, and `multisig::combine`,
+  and validate participant keys before hashing in `multisig::sign_round_2`
+  [#106]
+
 ## [0.7.0] - 2026-10-09
 
 ### Added
@@ -165,6 +178,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial commit, this package continues the development of [dusk-schnorr](https://github.com/dusk-network/schnorr/) at version `0.18.0` under the new name: jubjub-schnorr
 
 <!-- ISSUES -->
+[#106]: https://github.com/dusk-network/jubjub-schnorr/issues/106
 [#2773]: https://github.com/dusk-network/rusk/issues/2773
 [#99]: https://github.com/dusk-network/jubjub-schnorr/issues/99
 [#59]: https://github.com/dusk-network/jubjub-schnorr/issues/59
